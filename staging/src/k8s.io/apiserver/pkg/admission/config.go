@@ -176,7 +176,8 @@ func (p configProvider) ConfigFor(pluginName string) (io.Reader, error) {
 func writeYAML(obj runtime.Object, scheme *runtime.Scheme) ([]byte, error) {
 	gvks, _, err := scheme.ObjectKinds(obj)
 	if err != nil {
-		return nil, err
+		// If the type is runtime.Unknown, just print it anyway
+		return yaml.Marshal(obj)
 	}
 	gvs := []schema.GroupVersion{}
 	for _, gvk := range gvks {
