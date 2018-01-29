@@ -63,9 +63,11 @@ go_library(
         "//vendor/k8s.io/apimachinery/pkg/util/runtime:go_default_library",
         "//vendor/k8s.io/apimachinery/pkg/util/validation/field:go_default_library",
         "//vendor/k8s.io/apimachinery/pkg/watch:go_default_library",
+        "//vendor/k8s.io/apiserver/pkg/features:go_default_library",
         "//vendor/k8s.io/apiserver/pkg/storage:go_default_library",
         "//vendor/k8s.io/apiserver/pkg/storage/etcd/metrics:go_default_library",
         "//vendor/k8s.io/apiserver/pkg/storage/etcd/util:go_default_library",
+        "//vendor/k8s.io/apiserver/pkg/util/feature:go_default_library",
         "//vendor/k8s.io/apiserver/pkg/util/trace:go_default_library",
     ],
 )

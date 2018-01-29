@@ -22,7 +22,9 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/validation/field"
+	"k8s.io/apiserver/pkg/features"
 	"k8s.io/apiserver/pkg/storage"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
 )
 
 // APIObjectVersioner implements versioning and extracting etcd node information
@@ -33,8 +35,15 @@ type APIObjectVersioner struct {
 
 // NewAPIObjectVersioner instantiates a default APIObjectVersioner
 func NewAPIObjectVersioner() APIObjectVersioner {
+	obfuscationEnabled := utilfeature.DefaultFeatureGate.Enabled(features.ResourceVersionObfuscation)
+	var obfuscator Obfuscator
+	if obfuscationEnabled {
+		obfuscator = NewFeistelObfuscator()
+	} else {
+		obfuscator = NewIdentityObfuscator()
+	}
 	return APIObjectVersioner{
-		resourceVersionObfuscator: NewFeistelObfuscator(),
+		resourceVersionObfuscator: obfuscator,
 	}
 }
 

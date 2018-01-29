@@ -21,6 +21,24 @@ import (
 	"hash/fnv"
 )
 
+// IdentityObfuscator implements Obfuscator.
+type IdentityObfuscator struct{}
+
+// NewIdentityObfuscator instantiates a IdentityObfuscator object.
+func NewIdentityObfuscator() IdentityObfuscator {
+	return IdentityObfuscator{}
+}
+
+// Decode implements Obfuscator.
+func (i IdentityObfuscator) Decode(key string, clientResourceVersion uint64) uint64 {
+	return clientResourceVersion
+}
+
+// Encode implements Obfuscator.
+func (i IdentityObfuscator) Encode(key string, etcdResourceVersion uint64) uint64 {
+	return etcdResourceVersion
+}
+
 // FeistelObfuscator implements Obfuscator.
 type FeistelObfuscator struct {
 	KeyScheduleFunc func(key string) []uint32
