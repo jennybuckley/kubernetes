@@ -282,8 +282,15 @@ func (a *ValidatingAdmissionWebhook) Validate(attr admission.Attributes) error {
 	return errs[0]
 }
 
-// TODO: factor into a common place along with the validating webhook version.
+// TODO: factor into a common place along with the mutating webhook version.
 func (a *ValidatingAdmissionWebhook) shouldCallHook(h *v1beta1.Webhook, attr admission.Attributes) (bool, *apierrors.StatusError) {
+	gvk := attr.GetKind()
+	if gvk.Group == "admissionregistration.k8s.io" && gvk.Kind == "ValidatingWebhookConfiguration" {
+		return false, nil
+	}
+	if gvk.Group == "admissionregistration.k8s.io" && gvk.Kind == "MutatingWebhookConfiguration" {
+		return false, nil
+	}
 	var matches bool
 	for _, r := range h.Rules {
 		m := rules.Matcher{Rule: r, Attr: attr}
