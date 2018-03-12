@@ -186,31 +186,31 @@ func (gc *GarbageCollector) Sync(discoveryClient discovery.DiscoveryInterface, p
 		gc.workerLock.Lock()
 		defer gc.workerLock.Unlock()
 
-		// Resetting the REST mapper will also invalidate the underlying discovery
-		// client. This is a leaky abstraction and assumes behavior about the REST
-		// mapper, but we'll deal with it for now.
-		gc.restMapper.Reset()
+			// Resetting the REST mapper will also invalidate the underlying discovery
+			// client. This is a leaky abstraction and assumes behavior about the REST
+			// mapper, but we'll deal with it for now.
+			gc.restMapper.Reset()
 
-		// Perform the monitor resync and wait for controllers to report cache sync.
-		//
-		// NOTE: It's possible that newResources will diverge from the resources
-		// discovered by restMapper during the call to Reset, since they are
-		// distinct discovery clients invalidated at different times. For example,
-		// newResources may contain resources not returned in the restMapper's
-		// discovery call if the resources appeared in-between the calls. In that
-		// case, the restMapper will fail to map some of newResources until the next
-		// sync period.
-		if err := gc.resyncMonitors(newResources); err != nil {
-			utilruntime.HandleError(fmt.Errorf("failed to sync resource monitors: %v", err))
-			return
-		}
-		// TODO: WaitForCacheSync can block forever during normal operation. Could
-		// pass a timeout channel, but we have to consider the implications of
-		// un-pausing the GC with a partially synced graph builder.
-		if !controller.WaitForCacheSync("garbage collector", stopCh, gc.dependencyGraphBuilder.IsSynced) {
-			utilruntime.HandleError(fmt.Errorf("timed out waiting for dependency graph builder sync during GC sync"))
-			return
-		}
+			// Perform the monitor resync and wait for controllers to report cache sync.
+			//
+			// NOTE: It's possible that newResources will diverge from the resources
+			// discovered by restMapper during the call to Reset, since they are
+			// distinct discovery clients invalidated at different times. For example,
+			// newResources may contain resources not returned in the restMapper's
+			// discovery call if the resources appeared in-between the calls. In that
+			// case, the restMapper will fail to map some of newResources until the next
+			// sync period.
+			if err := gc.resyncMonitors(newResources); err != nil {
+				utilruntime.HandleError(fmt.Errorf("failed to sync resource monitors: %v", err))
+				return
+			}
+			// TODO: WaitForCacheSync can block forever during normal operation. Could
+			// pass a timeout channel, but we have to consider the implications of
+			// un-pausing the GC with a partially synced graph builder.
+			if !controller.WaitForCacheSync("garbage collector", stopCh, gc.dependencyGraphBuilder.IsSynced) {
+				utilruntime.HandleError(fmt.Errorf("timed out waiting for dependency graph builder sync during GC sync"))
+				return
+			}
 
 		// Finally, keep track of our new state. Do this after all preceding steps
 		// have succeeded to ensure we'll retry on subsequent syncs if an error
