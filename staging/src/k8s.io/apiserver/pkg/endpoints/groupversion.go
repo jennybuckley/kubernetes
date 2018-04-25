@@ -29,6 +29,7 @@ import (
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apiserver/pkg/admission"
 	"k8s.io/apiserver/pkg/endpoints/discovery"
+	"k8s.io/apiserver/pkg/endpoints/openapi"
 	"k8s.io/apiserver/pkg/registry/rest"
 )
 
@@ -76,6 +77,8 @@ type APIGroupVersion struct {
 	// EnableAPIResponseCompression indicates whether API Responses should support compression
 	// if the client requests it via Accept-Encoding
 	EnableAPIResponseCompression bool
+
+	OpenAPIGetter openapi.Getter
 }
 
 // InstallREST registers the REST handlers (storage, watch, proxy and redirect) into a restful Container.

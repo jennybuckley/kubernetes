@@ -39,6 +39,7 @@ import (
 	"k8s.io/apiserver/pkg/audit"
 	genericapi "k8s.io/apiserver/pkg/endpoints"
 	"k8s.io/apiserver/pkg/endpoints/discovery"
+	"k8s.io/apiserver/pkg/endpoints/openapi"
 	"k8s.io/apiserver/pkg/registry/rest"
 	"k8s.io/apiserver/pkg/server/healthz"
 	"k8s.io/apiserver/pkg/server/routes"
@@ -118,6 +119,10 @@ type GenericAPIServer struct {
 	// Enable swagger and/or OpenAPI if these configs are non-nil.
 	swaggerConfig *swagger.Config
 	openAPIConfig *openapicommon.Config
+
+	// openAPISchemaCacher stores a cached copy of the OpenAPI schema, if one exists, which is concurrently
+	// accessed by api handlers. If the underlying OpenAPI schema is nil, the spec has not been generated yet.
+	openAPISchemaCacher openapi.SchemaCacher
 
 	// PostStartHooks are each called after the server has started listening, in a separate go func for each
 	// with no guarantee of ordering between them.  The map key is a name used for error reporting.
@@ -233,6 +238,7 @@ func (s *GenericAPIServer) PrepareRun() preparedGenericAPIServer {
 		routes.OpenAPI{
 			Config: s.openAPIConfig,
 		}.Install(s.Handler.GoRestfulContainer, s.Handler.NonGoRestfulMux)
+		s.openAPISchemaCacher.SetSource(s.UnprotectedHandler(), "/openapi/v2")
 	}
 
 	s.installHealthz()
@@ -428,6 +434,7 @@ func (s *GenericAPIServer) newAPIGroupVersion(apiGroupInfo *APIGroupInfo, groupV
 		Admit:                        s.admissionControl,
 		MinRequestTimeout:            s.minRequestTimeout,
 		EnableAPIResponseCompression: s.enableAPIResponseCompression,
+		OpenAPIGetter:                &s.openAPISchemaCacher,
 	}
 }
 

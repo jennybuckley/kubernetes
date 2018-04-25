@@ -489,6 +489,7 @@ func (a *APIInstaller) registerResourceHandlers(path string, storage rest.Storag
 		Defaulter:       a.group.Defaulter,
 		Typer:           a.group.Typer,
 		UnsafeConvertor: a.group.UnsafeConvertor,
+		OpenAPIGetter:   a.group.OpenAPIGetter,
 
 		// TODO: Check for the interface on storage
 		TableConvertor: tableProvider,

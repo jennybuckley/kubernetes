@@ -20,7 +20,11 @@ go_test(
 
 go_library(
     name = "go_default_library",
-    srcs = ["openapi.go"],
+    srcs = [
+        "cacher.go",
+        "interfaces.go",
+        "openapi.go",
+    ],
     importpath = "k8s.io/apiserver/pkg/endpoints/openapi",
     deps = [
         "//vendor/github.com/emicklei/go-restful:go_default_library",

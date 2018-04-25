@@ -35,6 +35,7 @@ import (
 	"k8s.io/apiserver/pkg/admission"
 	"k8s.io/apiserver/pkg/endpoints/handlers/responsewriters"
 	"k8s.io/apiserver/pkg/endpoints/metrics"
+	"k8s.io/apiserver/pkg/endpoints/openapi"
 	"k8s.io/apiserver/pkg/endpoints/request"
 	"k8s.io/apiserver/pkg/registry/rest"
 )
@@ -51,6 +52,8 @@ type RequestScope struct {
 	Defaulter       runtime.ObjectDefaulter
 	Typer           runtime.ObjectTyper
 	UnsafeConvertor runtime.ObjectConvertor
+
+	OpenAPIGetter openapi.Getter
 
 	TableConvertor rest.TableConvertor
 
