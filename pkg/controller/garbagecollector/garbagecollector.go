@@ -169,14 +169,6 @@ func (gc *GarbageCollector) Sync(discoveryClient discovery.ServerResourcesInterf
 		// Get the current resource list from discovery.
 		newResources := GetDeletableResources(discoveryClient)
 
-		// This can occur if there is an internal error in GetDeletableResources.
-		// If the gc attempts to sync with 0 resources it will block forever.
-		// TODO: Implement a more complete solution for the garbage collector hanging.
-		if len(newResources) == 0 {
-			glog.V(5).Infof("no resources reported by discovery, skipping garbage collector sync")
-			return
-		}
-
 		// Decide whether discovery has reported a change.
 		if reflect.DeepEqual(oldResources, newResources) {
 			glog.V(5).Infof("no resource updates from discovery, skipping garbage collector sync")
@@ -190,6 +182,35 @@ func (gc *GarbageCollector) Sync(discoveryClient discovery.ServerResourcesInterf
 		// have resynced.
 		gc.workerLock.Lock()
 		defer gc.workerLock.Unlock()
+
+		newResources, err := gc.resync(discoveryClient, period, stopCh)
+		if err != nil {
+			utilruntime.HandleError(fmt.Errorf("error resyncing garbage collector: %v", err))
+			return
+		}
+
+		// Finally, keep track of our new state. Do this after all preceding steps
+		// have succeeded to ensure we'll retry on subsequent syncs if an error
+		// occurred.
+		oldResources = newResources
+		glog.V(2).Infof("synced garbage collector")
+	}, period, stopCh)
+}
+
+// resync will reset gc.restMapper, resync the monitors and then wait for the cache to be synced.
+// It will also poll discoveryClient for changes to deletable resources and if any are detected,
+// the process will start over without unpausing workers.
+// If the resync was successful, it will return the set of resources that the cache has been synced for.
+// Otherwise, it will return an empty set of resources and an error.
+//
+// Note that resync assumes the garbage collector's workers are already paused.
+func (gc *GarbageCollector) resync(discoveryClient discovery.ServerResourcesInterface, period time.Duration, stopCh <-chan struct{}) (map[schema.GroupVersionResource]struct{}, error) {
+	resyncFinishedCh := make(chan struct{})
+	defer close(resyncFinishedCh)
+	for {
+		// Start watching for changes to deletable resources until either the
+		// resync is successful or if told to stop by stopCh.
+		newResources, resourcesUpdatedCh := listWatchDeletableResources(discoveryClient, period, either(resyncFinishedCh, stopCh))
 
 		// Resetting the REST mapper will also invalidate the underlying discovery
 		// client. This is a leaky abstraction and assumes behavior about the REST
@@ -206,23 +227,24 @@ func (gc *GarbageCollector) Sync(discoveryClient discovery.ServerResourcesInterf
 		// case, the restMapper will fail to map some of newResources until the next
 		// sync period.
 		if err := gc.resyncMonitors(newResources); err != nil {
-			utilruntime.HandleError(fmt.Errorf("failed to sync resource monitors: %v", err))
-			return
-		}
-		// TODO: WaitForCacheSync can block forever during normal operation. Could
-		// pass a timeout channel, but we have to consider the implications of
-		// un-pausing the GC with a partially synced graph builder.
-		if !controller.WaitForCacheSync("garbage collector", stopCh, gc.dependencyGraphBuilder.IsSynced) {
-			utilruntime.HandleError(fmt.Errorf("timed out waiting for dependency graph builder sync during GC sync"))
-			return
+			glog.V(2).Infof("failed to sync resource monitors, restarting sync without unpausing workers: %v", err)
+			continue
 		}
 
-		// Finally, keep track of our new state. Do this after all preceding steps
-		// have succeeded to ensure we'll retry on subsequent syncs if an error
-		// occurred.
-		oldResources = newResources
-		glog.V(2).Infof("synced garbage collector")
-	}, period, stopCh)
+		// We will stop waiting for the cache to be synced either if we detect changes to the set of
+		// deletable resources or if told to stop by stopCh.
+		if controller.WaitForCacheSync("garbage collector", either(resourcesUpdatedCh, stopCh), gc.dependencyGraphBuilder.IsSynced) {
+			return newResources, nil
+		}
+
+		// The cache sync was stopped for some reason, now we need to decide if we should retry or give up.
+		select {
+		case <-resourcesUpdatedCh:
+			glog.V(2).Infof("discovered new resources, restarting sync without unpausing workers")
+		case <-stopCh:
+			return map[schema.GroupVersionResource]struct{}{}, fmt.Errorf("timed out waiting for dependency graph builder sync during GC sync")
+		}
+	}
 }
 
 func (gc *GarbageCollector) IsSynced() bool {
@@ -613,4 +635,44 @@ func GetDeletableResources(discoveryClient discovery.ServerResourcesInterface) m
 	}
 
 	return deletableGroupVersionResources
+}
+
+// listWatchDeletableResources will return a list of deleatble resources and a chan that will
+// remain open until the discoveryClient returns a set of deletable resources which is different
+// from the set that the monitors are synced to.
+func listWatchDeletableResources(discoveryClient discovery.ServerResourcesInterface, period time.Duration, stopCh <-chan struct{}) (map[schema.GroupVersionResource]struct{}, <-chan struct{}) {
+	// Get the current resource list from discovery.
+	currentResources := GetDeletableResources(discoveryClient)
+
+	// Start polling for changes to deletable resources
+	resourcesUpdatedCh := make(chan struct{})
+	go func() {
+		wait.PollUntil(period, func() (bool, error) {
+			// Get the current resource list from discovery.
+			newResources := GetDeletableResources(discoveryClient)
+			// Decide whether discovery has reported a change.
+			if reflect.DeepEqual(currentResources, newResources) {
+				return false, nil
+			}
+			close(resourcesUpdatedCh)
+			return true, nil
+		}, stopCh)
+	}()
+
+	// Return the set of deletable resources and a channel which will eventually close if it becomes stale
+	return currentResources, resourcesUpdatedCh
+}
+
+// either will create a new stop channel that closes once either
+// of two input stop channels closes
+func either(ch1, ch2 <-chan struct{}) <-chan struct{} {
+	eitherCh := make(chan struct{})
+	go func() {
+		select {
+		case <-ch1:
+		case <-ch2:
+		}
+		close(eitherCh)
+	}()
+	return eitherCh
 }
