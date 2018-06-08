@@ -255,6 +255,12 @@ type Patcher interface {
 	Updater
 }
 
+// Applier is a storage object that supports get create and update.
+type Applier interface {
+	Getter
+	CreaterUpdater
+}
+
 // Watcher should be implemented by all Storage objects that
 // want to offer the ability to watch for changes through the watch api.
 type Watcher interface {

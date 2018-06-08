@@ -37,6 +37,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/diff"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
+	"k8s.io/apiserver/pkg/admission"
 	"k8s.io/apiserver/pkg/apis/example"
 	examplev1 "k8s.io/apiserver/pkg/apis/example/v1"
 	"k8s.io/apiserver/pkg/endpoints/request"
@@ -386,9 +387,10 @@ func (tc *patchTestCase) Run(t *testing.T) {
 			kind:            kind,
 			resource:        resource,
 
-			createValidation: rest.ValidateAllObjectFunc,
-			updateValidation: admissionValidation,
-			admissionCheck:   admissionMutation,
+			admissionCheck: &fakeAdmissionInterface{
+				admit:    admissionMutation,
+				validate: admissionValidation,
+			},
 
 			codec: codec,
 
@@ -847,4 +849,21 @@ func setTcPod(tcPod *example.Pod, name string, namespace string, uid types.UID, 
 	if len(nodeName) != 0 {
 		tcPod.Spec.NodeName = nodeName
 	}
+}
+
+type fakeAdmissionInterface struct {
+	admit    mutateObjectUpdateFunc
+	validate rest.ValidateObjectUpdateFunc
+}
+
+func (f *fakeAdmissionInterface) Handles(operation admission.Operation) bool {
+	return true
+}
+
+func (f *fakeAdmissionInterface) Admit(a admission.Attributes) (err error) {
+	return f.admit(a.GetObject(), a.GetOldObject())
+}
+
+func (f *fakeAdmissionInterface) Validate(a admission.Attributes) (err error) {
+	return f.validate(a.GetObject(), a.GetOldObject())
 }

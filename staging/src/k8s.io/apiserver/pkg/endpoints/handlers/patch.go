@@ -28,6 +28,7 @@ import (
 
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apply"
 	"k8s.io/apimachinery/pkg/apply/parse"
 	"k8s.io/apimachinery/pkg/apply/strategy"
@@ -48,7 +49,7 @@ import (
 )
 
 // PatchResource returns a function that will handle a resource patch.
-func PatchResource(r rest.Patcher, scope RequestScope, admit admission.Interface, patchTypes []string) http.HandlerFunc {
+func PatchResource(rp rest.Patcher, ra rest.Applier, scope RequestScope, admit admission.Interface, patchTypes []string) http.HandlerFunc {
 	return func(w http.ResponseWriter, req *http.Request) {
 		// For performance tracking purposes.
 		trace := utiltrace.New("Patch " + req.URL.Path)
@@ -113,32 +114,24 @@ func PatchResource(r rest.Patcher, scope RequestScope, admit admission.Interface
 			scope.Serializer.DecoderToVersion(s.Serializer, schema.GroupVersion{Group: gv.Group, Version: runtime.APIVersionInternal}),
 		)
 
-		userInfo, _ := request.UserFrom(ctx)
-		staticAdmissionAttributes := admission.NewAttributesRecord(nil, nil, scope.Kind, namespace, name, scope.Resource, scope.Subresource, admission.Update, userInfo)
-		admissionCheck := func(updatedObject runtime.Object, currentObject runtime.Object) error {
-			if mutatingAdmission, ok := admit.(admission.MutationInterface); ok && admit.Handles(admission.Update) {
-				return mutatingAdmission.Admit(admission.NewAttributesRecord(updatedObject, currentObject, scope.Kind, namespace, name, scope.Resource, scope.Subresource, admission.Update, userInfo))
-			}
-			return nil
-		}
-
 		p := patcher{
 			namer:           scope.Namer,
 			creater:         scope.Creater,
 			defaulter:       scope.Defaulter,
+			typer:           scope.Typer,
 			unsafeConvertor: scope.UnsafeConvertor,
 			kind:            scope.Kind,
 			resource:        scope.Resource,
+			subresource:     scope.Subresource,
 
-			createValidation: rest.AdmissionToValidateObjectFunc(admit, staticAdmissionAttributes),
-			updateValidation: rest.AdmissionToValidateObjectUpdateFunc(admit, staticAdmissionAttributes),
-			admissionCheck:   admissionCheck,
+			admissionCheck: admit,
 
 			codec: codec,
 
 			timeout: timeout,
 
-			restPatcher: r,
+			restPatcher: rp,
+			restApplier: ra,
 			name:        name,
 			patchType:   patchType,
 			patchBytes:  patchBytes,
@@ -180,14 +173,13 @@ type patcher struct {
 	namer           ScopeNamer
 	creater         runtime.ObjectCreater
 	defaulter       runtime.ObjectDefaulter
+	typer           runtime.ObjectTyper
 	unsafeConvertor runtime.ObjectConvertor
 	resource        schema.GroupVersionResource
 	kind            schema.GroupVersionKind
+	subresource     string
 
-	// Validation functions
-	createValidation rest.ValidateObjectFunc
-	updateValidation rest.ValidateObjectUpdateFunc
-	admissionCheck   mutateObjectUpdateFunc
+	admissionCheck admission.Interface
 
 	codec runtime.Codec
 
@@ -195,6 +187,7 @@ type patcher struct {
 
 	// Operation information
 	restPatcher rest.Patcher
+	restApplier rest.Applier
 	name        string
 	patchType   types.PatchType
 	patchBytes  []byte
@@ -202,9 +195,8 @@ type patcher struct {
 	trace *utiltrace.Trace
 
 	// Set at invocation-time (by applyPatch) and immutable thereafter
-	namespace         string
-	updatedObjectInfo rest.UpdatedObjectInfo
-	mechanism         patchMechanism
+	namespace string
+	operation patchOperation
 }
 
 func (p *patcher) toUnversioned(versionedObj runtime.Object) (runtime.Object, error) {
@@ -416,9 +408,28 @@ func (p *applyPatcher) applyPatchToCurrentObject(currentObject runtime.Object) (
 	return output, nil
 }
 
+type patchOperation interface {
+	execute(ctx context.Context) (runtime.Object, error)
+	admissionType() admission.Operation
+}
+
+type patchUpdater struct {
+	*patcher
+	mechanism patchMechanism
+}
+
+func (p *patchUpdater) execute(ctx context.Context) (runtime.Object, error) {
+	updatedObjectInfo := rest.DefaultUpdatedObjectInfo(nil, p.applyPatch, p.applyAdmission)
+	attributes := p.admissionAttributes(ctx, nil, nil)
+	createValidation := rest.AdmissionToValidateObjectFunc(p.admissionCheck, attributes)
+	updateValidation := rest.AdmissionToValidateObjectUpdateFunc(p.admissionCheck, attributes)
+	updateObject, _, updateErr := p.restPatcher.Update(ctx, p.name, updatedObjectInfo, createValidation, updateValidation)
+	return updateObject, updateErr
+}
+
 // applyPatch is called every time GuaranteedUpdate asks for the updated object,
 // and is given the currently persisted object as input.
-func (p *patcher) applyPatch(_ context.Context, _, currentObject runtime.Object) (runtime.Object, error) {
+func (p *patchUpdater) applyPatch(_ context.Context, _, currentObject runtime.Object) (runtime.Object, error) {
 	// Make sure we actually have a persisted currentObject
 	p.trace.Step("About to apply patch")
 	if hasUID, err := hasUID(currentObject); err != nil {
@@ -437,11 +448,54 @@ func (p *patcher) applyPatch(_ context.Context, _, currentObject runtime.Object)
 	return objToUpdate, nil
 }
 
+func (p *patchUpdater) admissionType() admission.Operation {
+	return admission.Update
+}
+
+type patchCreater struct {
+	*patcher
+}
+
+func (p *patchCreater) execute(ctx context.Context) (runtime.Object, error) {
+	original := p.restApplier.New()
+	objToCreate, gvk, err := p.codec.Decode(p.patchBytes, &p.kind, original)
+	if err != nil {
+		return nil, transformDecodeError(p.typer, err, original, gvk, p.patchBytes)
+	}
+	if gvk.GroupVersion() != p.kind.GroupVersion() {
+		return nil, errors.NewBadRequest(fmt.Sprintf("the API version in the data (%s) does not match the expected API version (%v)", gvk.GroupVersion().String(), p.kind.GroupVersion().String()))
+	}
+	if err := checkName(objToCreate, p.name, p.namespace, p.namer); err != nil {
+		return nil, err
+	}
+	if _, err := p.applyAdmission(ctx, objToCreate, nil); err != nil {
+		return nil, err
+	}
+	attributes := p.admissionAttributes(ctx, objToCreate, nil)
+	createValidation := rest.AdmissionToValidateObjectFunc(p.admissionCheck, attributes)
+	return p.restApplier.Create(ctx, objToCreate, createValidation, false)
+}
+
+func (p *patchCreater) admissionType() admission.Operation {
+	return admission.Create
+}
+
+func (p *patcher) admissionAttributes(ctx context.Context, updatedObject runtime.Object, currentObject runtime.Object) admission.Attributes {
+	admissionOperation := p.operation.admissionType()
+	userInfo, _ := request.UserFrom(ctx)
+	return admission.NewAttributesRecord(nil, nil, p.kind, p.namespace, p.name, p.resource, p.subresource, admissionOperation, userInfo)
+}
+
 // applyAdmission is called every time GuaranteedUpdate asks for the updated object,
 // and is given the currently persisted object and the patched object as input.
 func (p *patcher) applyAdmission(ctx context.Context, patchedObject runtime.Object, currentObject runtime.Object) (runtime.Object, error) {
 	p.trace.Step("About to check admission control")
-	return patchedObject, p.admissionCheck(patchedObject, currentObject)
+	mutatingAdmission, ok := p.admissionCheck.(admission.MutationInterface)
+	if ok && mutatingAdmission.Handles(p.operation.admissionType()) {
+		attributes := p.admissionAttributes(ctx, patchedObject, currentObject)
+		return patchedObject, mutatingAdmission.Admit(attributes)
+	}
+	return patchedObject, nil
 }
 
 // patchResource divides PatchResource for easier unit testing
@@ -449,23 +503,31 @@ func (p *patcher) patchResource(ctx context.Context, scope RequestScope) (runtim
 	p.namespace = request.NamespaceValue(ctx)
 	switch p.patchType {
 	case types.JSONPatchType, types.MergePatchType:
-		p.mechanism = &jsonPatcher{patcher: p}
+		mechanism := &jsonPatcher{patcher: p}
+		p.operation = &patchUpdater{patcher: p, mechanism: mechanism}
 	case types.StrategicMergePatchType:
 		schemaReferenceObj, err := p.unsafeConvertor.ConvertToVersion(p.restPatcher.New(), p.kind.GroupVersion())
 		if err != nil {
 			return nil, err
 		}
-		p.mechanism = &smpPatcher{patcher: p, schemaReferenceObj: schemaReferenceObj}
+		mechanism := &smpPatcher{patcher: p, schemaReferenceObj: schemaReferenceObj}
+		p.operation = &patchUpdater{patcher: p, mechanism: mechanism}
 	// this case is unreachable if ServerSideApply is not enabled because we will have already rejected the content type
 	case types.ApplyPatchType:
-		p.mechanism = &applyPatcher{patcher: p, model: scope.OpenAPISchema}
+		_, err := p.restPatcher.Get(ctx, p.name, &metav1.GetOptions{})
+		if errors.IsNotFound(err) && p.restApplier != nil {
+			// Only attempt to create if the object doesn't exist and the storage implements Applier
+			// since Patcher is not sufficient to allow the Create operation
+			p.operation = &patchCreater{patcher: p}
+		} else {
+			mechanism := &applyPatcher{patcher: p, model: scope.OpenAPISchema}
+			p.operation = &patchUpdater{patcher: p, mechanism: mechanism}
+		}
 	default:
 		return nil, fmt.Errorf("%v: unimplemented patch type", p.patchType)
 	}
-	p.updatedObjectInfo = rest.DefaultUpdatedObjectInfo(nil, p.applyPatch, p.applyAdmission)
 	return finishRequest(p.timeout, func() (runtime.Object, error) {
-		updateObject, _, updateErr := p.restPatcher.Update(ctx, p.name, p.updatedObjectInfo, p.createValidation, p.updateValidation)
-		return updateObject, updateErr
+		return p.operation.execute(ctx)
 	})
 }
 
