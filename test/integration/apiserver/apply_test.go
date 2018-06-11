@@ -20,24 +20,43 @@ import (
 	"testing"
 
 	"k8s.io/apimachinery/pkg/types"
+	genericfeatures "k8s.io/apiserver/pkg/features"
+	utilfeature "k8s.io/apiserver/pkg/util/feature"
 )
 
+// TestApplyAlsoCreates makes sure that PATCH requests with the apply content type
+// will create the object if it doesn't already exist
 func TestApplyAlsoCreates(t *testing.T) {
+	if err := utilfeature.DefaultFeatureGate.Set(string(genericfeatures.ServerSideApply) + "=true"); err != nil {
+		t.Fatal(err)
+	}
 	_, client, closeFn := setup(t)
 	defer closeFn()
 
-	_, err := client.CoreV1().RESTClient().Patch(types.StrategicMergePatchType).
+	_, err := client.CoreV1().RESTClient().Patch(types.ApplyPatchType).
 		Namespace("default").
 		Resource("pods").
 		Name("test-pod").
-		Body([]byte(`{"name": "test-pod"}`)).
+		Body([]byte(`{
+			"apiVersion": "v1",
+			"kind": "Pod",
+			"metadata": {
+				"name": "test-pod"
+			},
+			"spec": {
+				"containers": [{
+					"name": "test-container",
+					"image": "test-image"
+				}]
+			}
+		}`)).
 		Do().
 		Get()
 	if err != nil {
 		t.Fatalf("Failed to create object using Apply patch: %v", err)
 	}
 
-	obj, err := client.CoreV1().RESTClient().Get().Namespace("").Resource("pods").Name("test-pod").Do().Get()
+	_, err = client.CoreV1().RESTClient().Get().Namespace("default").Resource("pods").Name("test-pod").Do().Get()
 	if err != nil {
 		t.Fatalf("Failed to retrieve object: %v", err)
 	}
