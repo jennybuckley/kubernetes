@@ -564,7 +564,7 @@ func (e *Store) Update(ctx context.Context, name string, objInfo rest.UpdatedObj
 			return nil, nil, err
 		}
 		if version == 0 {
-			if !e.UpdateStrategy.AllowCreateOnUpdate() {
+			if !e.UpdateStrategy.AllowCreateOnUpdate() && !objInfo.ForceAllowCreateOnUpdate() {
 				return nil, nil, kubeerr.NewNotFound(qualifiedResource, name)
 			}
 			creating = true

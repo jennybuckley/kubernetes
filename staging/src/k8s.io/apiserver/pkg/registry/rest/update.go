@@ -212,6 +212,11 @@ func (i *defaultUpdatedObjectInfo) UpdatedObject(ctx context.Context, oldObj run
 	return newObj, nil
 }
 
+// ForceAllowCreateOnUpdate allows for overriding the UpdateStrategy's AllowCreateOnUpdate function.
+func (i *defaultUpdatedObjectInfo) ForceAllowCreateOnUpdate() bool {
+	return false;
+}
+
 // wrappedUpdatedObjectInfo allows wrapping an existing objInfo and
 // chaining additional transformations/checks on the result of UpdatedObject()
 type wrappedUpdatedObjectInfo struct {
@@ -251,6 +256,11 @@ func (i *wrappedUpdatedObjectInfo) UpdatedObject(ctx context.Context, oldObj run
 	}
 
 	return newObj, nil
+}
+
+// ForceAllowCreateOnUpdate satisfies the UpdatedObjectInfo interface.
+func (i *wrappedUpdatedObjectInfo) ForceAllowCreateOnUpdate() bool {
+	return i.objInfo.ForceAllowCreateOnUpdate()
 }
 
 // AdmissionToValidateObjectUpdateFunc converts validating admission to a rest validate object update func

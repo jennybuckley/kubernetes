@@ -205,6 +205,10 @@ type UpdatedObjectInfo interface {
 	// UpdatedObject returns the updated object, given a context and old object.
 	// The only time an empty oldObj should be passed in is if a "create on update" is occurring (there is no oldObj).
 	UpdatedObject(ctx context.Context, oldObj runtime.Object) (newObj runtime.Object, err error)
+
+	// ForceAllowCreateOnUpdate returns true if the object should be created on
+	// update if it doesn't exist yet, no matter what the UpdateStrategy specifies for AllowCreateOnUpdate.
+	ForceAllowCreateOnUpdate() bool
 }
 
 // ValidateObjectFunc is a function to act on a given object. An error may be returned

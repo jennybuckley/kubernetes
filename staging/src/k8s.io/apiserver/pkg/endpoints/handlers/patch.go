@@ -26,6 +26,7 @@ import (
 	"github.com/evanphx/json-patch"
 
 	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -398,7 +399,7 @@ func (p *patcher) patchResource(ctx context.Context, scope RequestScope) (runtim
 	}
 
 	wasCreated := false
-	p.updatedObjectInfo = rest.DefaultUpdatedObjectInfo(nil, p.applyPatch, p.applyAdmission)
+	p.updatedObjectInfo = &patcherUpdatedObjectInfo{rest.DefaultUpdatedObjectInfo(nil, p.applyPatch, p.applyAdmission)}
 	result, err := finishRequest(p.timeout, func() (runtime.Object, error) {
 		// TODO: Pass in UpdateOptions to override UpdateStrategy.AllowUpdateOnCreate
 		updateObject, created, updateErr := p.restPatcher.Update(ctx, p.name, p.updatedObjectInfo, p.createValidation, p.updateValidation)
@@ -444,4 +445,25 @@ func interpretPatchError(err error) error {
 	default:
 		return err
 	}
+}
+
+type patcherUpdatedObjectInfo struct {
+	objInfo rest.UpdatedObjectInfo
+}
+
+var _ rest.UpdatedObjectInfo = &patcherUpdatedObjectInfo{}
+
+// Preconditions satisfies the UpdatedObjectInfo interface.
+func (i *patcherUpdatedObjectInfo) Preconditions() *metav1.Preconditions {
+	return i.objInfo.Preconditions()
+}
+
+// UpdatedObject satisfies the UpdatedObjectInfo interface.
+func (i *patcherUpdatedObjectInfo) UpdatedObject(ctx context.Context, oldObj runtime.Object) (runtime.Object, error) {
+	return i.objInfo.UpdatedObject(ctx, oldObj)
+}
+
+// ForceAllowCreateOnUpdate allows for overriding the UpdateStrategy's AllowCreateOnUpdate function.
+func (i *patcherUpdatedObjectInfo) ForceAllowCreateOnUpdate() bool {
+	return true
 }
