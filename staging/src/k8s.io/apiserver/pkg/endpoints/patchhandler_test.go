@@ -193,6 +193,7 @@ func TestApplyCreatesWithLastApplied(t *testing.T) {
 	}
 	storage := map[string]rest.Storage{}
 	simpleStorage := SimpleRESTStorage{}
+	simpleStorage.wasCreatedOnUpdate = true;
 	storage["simple"] = &simpleStorage
 	handler := handle(storage)
 	server := httptest.NewServer(handler)
@@ -209,7 +210,7 @@ func TestApplyCreatesWithLastApplied(t *testing.T) {
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
-	if response.StatusCode != http.StatusOK {
+	if response.StatusCode != http.StatusCreated {
 		t.Errorf("Unexpected response %#v", response)
 	}
 	expected := `{"apiVersion":"test.group/version","kind":"Simple","labels":{"test":"yes"},"metadata":{"name":"id"}}`

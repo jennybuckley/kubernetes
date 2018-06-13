@@ -345,6 +345,9 @@ type SimpleRESTStorage struct {
 	// If non-nil, called inside the WorkFunc when answering update, delete, create.
 	// obj receives the original input to the update, delete, or create call.
 	injectedFunction func(obj runtime.Object) (returnObj runtime.Object, err error)
+
+	// Determines the returned value for wasCreated on successful update calls
+	wasCreatedOnUpdate bool
 }
 
 func (storage *SimpleRESTStorage) NamespaceScoped() bool {
@@ -492,7 +495,7 @@ func (storage *SimpleRESTStorage) Update(ctx context.Context, name string, objIn
 	if err := updateValidation(&storage.item, obj); err != nil {
 		return nil, false, err
 	}
-	return obj, false, err
+	return obj, storage.wasCreatedOnUpdate, err
 }
 
 // Implement ResourceWatcher.
