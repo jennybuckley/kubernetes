@@ -481,7 +481,7 @@ function start_apiserver {
     # Admission Controllers to invoke prior to persisting objects in cluster
     #
     # The order defined here dose not matter.
-    ENABLE_ADMISSION_PLUGINS=Initializers,LimitRanger,ServiceAccount${security_admission},DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota,StorageObjectInUseProtection
+    ENABLE_ADMISSION_PLUGINS=LimitRanger,ServiceAccount${security_admission},DefaultStorageClass,DefaultTolerationSeconds,MutatingAdmissionWebhook,ValidatingAdmissionWebhook,ResourceQuota,StorageObjectInUseProtection
 
     audit_arg=""
     APISERVER_BASIC_AUDIT_LOG=""
@@ -826,6 +826,7 @@ function start_kubelet {
         --volume=/:/rootfs:ro,rslave \
         --volume=/var/run:/var/run:rw \
         --volume=/sys:/sys:ro \
+        --volume=/usr/libexec/kubernetes/kubelet-plugins/volume/exec:/usr/libexec/kubernetes/kubelet-plugins/volume/exec:rw \
         --volume=/var/lib/docker/:/var/lib/docker:rslave \
         --volume=/var/lib/kubelet/:/var/lib/kubelet:rslave \
         --volume=/dev:/dev \

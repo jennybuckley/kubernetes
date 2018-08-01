@@ -75,7 +75,6 @@ ALLOWED_NOTREADY_NODES="${ALLOWED_NOTREADY_NODES:-$((NUM_NODES / 100))}"
 # you are updating the os image versions, update this variable.
 # Also please update corresponding image for node e2e at:
 # https://github.com/kubernetes/kubernetes/blob/master/test/e2e_node/jenkins/image-config.yaml
-CVM_VERSION=${CVM_VERSION:-container-vm-v20170627}
 GCI_VERSION=${KUBE_GCI_VERSION:-cos-stable-65-10323-64-0}
 MASTER_IMAGE=${KUBE_GCE_MASTER_IMAGE:-}
 MASTER_IMAGE_PROJECT=${KUBE_GCE_MASTER_PROJECT:-cos-cloud}
@@ -345,7 +344,7 @@ if [[ -n "${GCE_GLBC_IMAGE:-}" ]]; then
 fi
 
 if [[ -z "${KUBE_ADMISSION_CONTROL:-}" ]]; then
-  ADMISSION_CONTROL="Initializers,NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,PodPreset,DefaultStorageClass,DefaultTolerationSeconds,NodeRestriction,Priority,StorageObjectInUseProtection"
+  ADMISSION_CONTROL="NamespaceLifecycle,LimitRanger,ServiceAccount,PersistentVolumeLabel,PodPreset,DefaultStorageClass,DefaultTolerationSeconds,NodeRestriction,Priority,StorageObjectInUseProtection"
   if [[ "${ENABLE_POD_SECURITY_POLICY:-}" == "true" ]]; then
     ADMISSION_CONTROL="${ADMISSION_CONTROL},PodSecurityPolicy"
   fi

@@ -404,6 +404,11 @@ func (c *configFactory) onPvUpdate(old, new interface{}) {
 
 func (c *configFactory) invalidatePredicatesForPvUpdate(oldPV, newPV *v1.PersistentVolume) {
 	invalidPredicates := sets.NewString()
+	// CheckVolumeBinding predicate calls SchedulerVolumeBinder.FindPodVolumes
+	// which will cache PVs in PodBindingCache. When PV got updated, we should
+	// invalidate cache, otherwise PVAssumeCache.Assume will fail with out of sync
+	// error.
+	invalidPredicates.Insert(predicates.CheckVolumeBindingPred)
 	for k, v := range newPV.Labels {
 		// If PV update modifies the zone/region labels.
 		if isZoneRegionLabel(k) && !reflect.DeepEqual(v, oldPV.Labels[k]) {
@@ -765,6 +770,11 @@ func (c *configFactory) addNodeToCache(obj interface{}) {
 
 	if err := c.schedulerCache.AddNode(node); err != nil {
 		glog.Errorf("scheduler cache AddNode failed: %v", err)
+	}
+
+	if c.enableEquivalenceClassCache {
+		// GetNodeCache() will lazily create NodeCache for given node if it does not exist.
+		c.equivalencePodCache.GetNodeCache(node.GetName())
 	}
 
 	c.podQueue.MoveAllToActiveQueue()
@@ -1298,10 +1308,10 @@ func NewPodInformer(client clientset.Interface, resyncPeriod time.Duration) core
 func (c *configFactory) MakeDefaultErrorFunc(backoff *util.PodBackoff, podQueue core.SchedulingQueue) func(pod *v1.Pod, err error) {
 	return func(pod *v1.Pod, err error) {
 		if err == core.ErrNoNodesAvailable {
-			glog.V(4).Infof("Unable to schedule %v %v: no nodes are registered to the cluster; waiting", pod.Namespace, pod.Name)
+			glog.V(4).Infof("Unable to schedule %v/%v: no nodes are registered to the cluster; waiting", pod.Namespace, pod.Name)
 		} else {
 			if _, ok := err.(*core.FitError); ok {
-				glog.V(4).Infof("Unable to schedule %v %v: no fit: %v; waiting", pod.Namespace, pod.Name, err)
+				glog.V(4).Infof("Unable to schedule %v/%v: no fit: %v; waiting", pod.Namespace, pod.Name, err)
 			} else if errors.IsNotFound(err) {
 				if errStatus, ok := err.(errors.APIStatus); ok && errStatus.Status().Details.Kind == "node" {
 					nodeName := errStatus.Status().Details.Name
@@ -1321,7 +1331,7 @@ func (c *configFactory) MakeDefaultErrorFunc(backoff *util.PodBackoff, podQueue 
 					}
 				}
 			} else {
-				glog.Errorf("Error scheduling %v %v: %v; retrying", pod.Namespace, pod.Name, err)
+				glog.Errorf("Error scheduling %v/%v: %v; retrying", pod.Namespace, pod.Name, err)
 			}
 		}
 
