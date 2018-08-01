@@ -64,13 +64,6 @@ const (
 	// all at once.
 	APIListChunking utilfeature.Feature = "APIListChunking"
 
-<<<<<<< HEAD
-	// owner: @apelisse, @lavalamp
-	// alpha: v1.11
-	//
-	// Server-side apply. Merging happens on the server.
-	ServerSideApply utilfeature.Feature = "ServerSideApply"
-=======
 	// owner: @apelisse
 	// alpha: v1.12
 	//
@@ -78,7 +71,12 @@ const (
 	// validation, merging, mutation can be tested without
 	// committing.
 	DryRun utilfeature.Feature = "DryRun"
->>>>>>> cefca66b1ff002cedba33501171cedd81e51bd5d
+
+	// owner: @apelisse, @lavalamp
+	// alpha: v1.11
+	//
+	// Server-side apply. Merging happens on the server.
+	ServerSideApply utilfeature.Feature = "ServerSideApply"
 )
 
 func init() {
@@ -94,9 +92,6 @@ var defaultKubernetesFeatureGates = map[utilfeature.Feature]utilfeature.FeatureS
 	APIResponseCompression:  {Default: false, PreRelease: utilfeature.Alpha},
 	Initializers:            {Default: false, PreRelease: utilfeature.Alpha},
 	APIListChunking:         {Default: true, PreRelease: utilfeature.Beta},
-<<<<<<< HEAD
-	ServerSideApply:         {Default: false, PreRelease: utilfeature.Alpha},
-=======
 	DryRun:                  {Default: false, PreRelease: utilfeature.Alpha},
->>>>>>> cefca66b1ff002cedba33501171cedd81e51bd5d
+	ServerSideApply:         {Default: false, PreRelease: utilfeature.Alpha},
 }

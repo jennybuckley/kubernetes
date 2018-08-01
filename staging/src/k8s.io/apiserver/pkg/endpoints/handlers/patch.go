@@ -26,13 +26,10 @@ import (
 	"github.com/evanphx/json-patch"
 
 	"k8s.io/apimachinery/pkg/api/errors"
-<<<<<<< HEAD
 	"k8s.io/apimachinery/pkg/api/meta"
-=======
 	metainternalversion "k8s.io/apimachinery/pkg/apis/meta/internalversion"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/validation"
->>>>>>> cefca66b1ff002cedba33501171cedd81e51bd5d
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -130,7 +127,6 @@ func PatchResource(r rest.Patcher, scope RequestScope, admit admission.Interface
 		)
 
 		userInfo, _ := request.UserFrom(ctx)
-<<<<<<< HEAD
 		staticCreateAttributes := admission.NewAttributesRecord(nil, nil, scope.Kind, namespace, name, scope.Resource, scope.Subresource, admission.Create, userInfo)
 		staticUpdateAttributes := admission.NewAttributesRecord(nil, nil, scope.Kind, namespace, name, scope.Resource, scope.Subresource, admission.Update, userInfo)
 		mutatingAdmission, _ := admit.(admission.MutationInterface)
@@ -145,35 +141,6 @@ func PatchResource(r rest.Patcher, scope RequestScope, admit admission.Interface
 			Subresource:     scope.Subresource,
 			Namespace:       namespace,
 			Name:            name,
-=======
-		staticAdmissionAttributes := admission.NewAttributesRecord(
-			nil,
-			nil,
-			scope.Kind,
-			namespace,
-			name,
-			scope.Resource,
-			scope.Subresource,
-			admission.Update,
-			userInfo,
-		)
-		admissionCheck := func(updatedObject runtime.Object, currentObject runtime.Object) error {
-			// if we allow create-on-patch, we have this TODO: call the mutating admission chain with the CREATE verb instead of UPDATE
-			if mutatingAdmission, ok := admit.(admission.MutationInterface); ok && admit.Handles(admission.Update) {
-				return mutatingAdmission.Admit(admission.NewAttributesRecord(
-					updatedObject,
-					currentObject,
-					scope.Kind,
-					namespace,
-					name,
-					scope.Resource,
-					scope.Subresource,
-					admission.Update,
-					userInfo,
-				))
-			}
-			return nil
->>>>>>> cefca66b1ff002cedba33501171cedd81e51bd5d
 		}
 
 		p := patcher{
@@ -348,11 +315,7 @@ func (p *smpPatcher) applyPatchToCurrentObject(currentObject runtime.Object) (ru
 	if err != nil {
 		return nil, err
 	}
-<<<<<<< HEAD
-	if err := strategicPatchObject(p.codec, p.defaulter, currentVersionedObject, p.patchBytes, versionedObjToUpdate, p.schemaReferenceObj); err != nil {
-=======
-	if err := strategicPatchObject(p.defaulter, currentVersionedObject, p.patchJS, versionedObjToUpdate, p.schemaReferenceObj); err != nil {
->>>>>>> cefca66b1ff002cedba33501171cedd81e51bd5d
+	if err := strategicPatchObject(p.defaulter, currentVersionedObject, p.patchBytes, versionedObjToUpdate, p.schemaReferenceObj); err != nil {
 		return nil, err
 	}
 	// Convert the object back to unversioned (aka internal version).
@@ -479,15 +442,9 @@ func (p *patcher) patchResource(ctx context.Context, scope RequestScope) (runtim
 
 	wasCreated := false
 	p.updatedObjectInfo = rest.DefaultUpdatedObjectInfo(nil, p.applyPatch, p.applyAdmission)
-<<<<<<< HEAD
 	result, err := finishRequest(p.timeout, func() (runtime.Object, error) {
-		// TODO: Pass in UpdateOptions to override UpdateStrategy.AllowUpdateOnCreate
-		updateObject, created, updateErr := p.restPatcher.Update(ctx, p.name, p.updatedObjectInfo, p.createValidation, p.updateValidation, p.forceAllowCreate)
+		updateObject, created, updateErr := p.restPatcher.Update(ctx, p.name, p.updatedObjectInfo, p.createValidation, p.updateValidation, p.forceAllowCreate, p.options)
 		wasCreated = created
-=======
-	return finishRequest(p.timeout, func() (runtime.Object, error) {
-		updateObject, _, updateErr := p.restPatcher.Update(ctx, p.name, p.updatedObjectInfo, p.createValidation, p.updateValidation, false, p.options)
->>>>>>> cefca66b1ff002cedba33501171cedd81e51bd5d
 		return updateObject, updateErr
 	})
 	return result, wasCreated, err
