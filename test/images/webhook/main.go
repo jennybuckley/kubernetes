@@ -44,6 +44,9 @@ const (
 	addInitContainerPatch string = `[
 		 {"op":"add","path":"/spec/initContainers","value":[{"image":"webhook-added-image","name":"webhook-added-init-container","resources":{}}]}
 	]`
+	addContainerPatch string = `[
+		 {"op":"add","path":"/spec/containers","value":[{"image":"webhook-added-image","name":"webhook-added-container","resources":{}}]}
+	]`
 )
 
 // Config contains the server (the webhook) cert and key.
@@ -139,7 +142,7 @@ func mutatePods(ar v1beta1.AdmissionReview) *v1beta1.AdmissionResponse {
 	reviewResponse := v1beta1.AdmissionResponse{}
 	reviewResponse.Allowed = true
 	if pod.Name == "webhook-to-be-mutated" {
-		reviewResponse.Patch = []byte(addInitContainerPatch)
+		reviewResponse.Patch = []byte(addContainerPatch)
 		pt := v1beta1.PatchTypeJSONPatch
 		reviewResponse.PatchType = &pt
 	}
@@ -383,10 +386,10 @@ func main() {
 	http.HandleFunc("/custom-resource", serveCustomResource)
 	http.HandleFunc("/mutating-custom-resource", serveMutateCustomResource)
 	http.HandleFunc("/crd", serveCRD)
-	clientset := getClient()
 	server := &http.Server{
 		Addr:      ":443",
-		TLSConfig: configTLS(config, clientset),
+		TLSConfig: configTLS(config),
 	}
-	server.ListenAndServeTLS("", "")
+	err := server.ListenAndServeTLS("", "")
+	fmt.Printf("%v\n", err)
 }
