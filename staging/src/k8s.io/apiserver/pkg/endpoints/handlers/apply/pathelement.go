@@ -63,7 +63,7 @@ func NewPathElement(s string) (fieldpath.PathElement, error) {
 			Index: &i,
 		}, nil
 	case Key:
-		kv := map[string]string{}
+		kv := map[string]json.RawMessage{}
 		err := json.Unmarshal([]byte(split[1]), &kv)
 		if err != nil {
 			return fieldpath.PathElement{}, err
@@ -71,7 +71,11 @@ func NewPathElement(s string) (fieldpath.PathElement, error) {
 		fields := []value.Field{}
 		for k, v := range kv {
 			fmt.Println(v)
-			val, err := value.FromJSON([]byte(v))
+			b, err := v.MarshalJSON()
+			if err != nil {
+				return fieldpath.PathElement{}, err
+			}
+			val, err := value.FromJSON(b)
 			if err != nil {
 				return fieldpath.PathElement{}, err
 			}
@@ -95,13 +99,18 @@ func PathElementString(pe fieldpath.PathElement) (string, error) {
 	case pe.FieldName != nil:
 		return Field + Separator + *pe.FieldName, nil
 	case len(pe.Key) > 0:
-		kv := map[string]string{}
+		kv := map[string]json.RawMessage{}
 		for _, k := range pe.Key {
 			b, err := k.Value.ToJSON()
 			if err != nil {
 				return "", err
 			}
-			kv[k.Name] = string(b)
+			m := json.RawMessage{}
+			err = m.UnmarshalJSON(b)
+			if err != nil {
+				return "", err
+			}
+			kv[k.Name] = m
 		}
 		b, err := json.Marshal(kv)
 		if err != nil {

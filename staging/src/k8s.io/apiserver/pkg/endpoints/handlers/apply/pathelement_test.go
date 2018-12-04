@@ -25,8 +25,8 @@ func TestPathElementRoundTrip(t *testing.T) {
 		"f:",
 		"f:spec",
 		"f:more-complicated-string",
-		"k:{\"name\":\"\\\"my-container\\\"\"}",
-		"k:{\"port\":\"\\\"8080\\\"\",\"protocol\":\"\\\"TCP\\\"\"}",
+		"k:{\"name\":\"my-container\"}",
+		"k:{\"port\":\"8080\",\"protocol\":\"TCP\"}",
 		"v:null",
 		"v:\"some-string\"",
 		"v:1234",
@@ -67,7 +67,7 @@ func TestNewPathElementError(t *testing.T) {
 		"v:invalid json",
 		"v:",
 		"k:invalid json",
-		"k:{\"name\":\"invalid json\"}",
+		"k:{\"name\":invalid}",
 	}
 
 	for _, test := range tests {
