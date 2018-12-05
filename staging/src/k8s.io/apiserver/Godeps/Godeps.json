@@ -460,7 +460,7 @@
 		},
 		{
 			"ImportPath": "github.com/google/gofuzz",
-			"Rev": "44d81051d367757e1c7c6a5a86423ece9afcf63c"
+			"Rev": "24818f796faf91cd76ec7bddd72458fbced7a6c1"
 		},
 		{
 			"ImportPath": "github.com/googleapis/gnostic/OpenAPIv2",
@@ -1132,6 +1132,18 @@
 		},
 		{
 			"ImportPath": "k8s.io/apimachinery/pkg/apis/meta/v1beta1",
+			"Rev": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+		},
+		{
+			"ImportPath": "k8s.io/apimachinery/pkg/apply",
+			"Rev": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+		},
+		{
+			"ImportPath": "k8s.io/apimachinery/pkg/apply/parse",
+			"Rev": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+		},
+		{
+			"ImportPath": "k8s.io/apimachinery/pkg/apply/strategy",
 			"Rev": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
 		},
 		{
@@ -1963,11 +1975,19 @@
 			"Rev": "c59034cc13d587f5ef4e85ca0ade0c1866ae8e1d"
 		},
 		{
+			"ImportPath": "k8s.io/kube-openapi/pkg/schemaconv",
+			"Rev": "c59034cc13d587f5ef4e85ca0ade0c1866ae8e1d"
+		},
+		{
 			"ImportPath": "k8s.io/kube-openapi/pkg/util",
 			"Rev": "c59034cc13d587f5ef4e85ca0ade0c1866ae8e1d"
 		},
 		{
 			"ImportPath": "k8s.io/kube-openapi/pkg/util/proto",
+			"Rev": "c59034cc13d587f5ef4e85ca0ade0c1866ae8e1d"
+		},
+		{
+			"ImportPath": "k8s.io/kube-openapi/pkg/util/proto/testing",
 			"Rev": "c59034cc13d587f5ef4e85ca0ade0c1866ae8e1d"
 		},
 		{
@@ -2057,6 +2077,22 @@
 		{
 			"ImportPath": "k8s.io/utils/pointer",
 			"Rev": "8e7ff06bf0e2d3289061230af203e430a15b6dcc"
+		},
+		{
+			"ImportPath": "sigs.k8s.io/structured-merge-diff/fieldpath",
+			"Rev": "01332b709372d8d83b4d7653b30a1961680a47d5"
+		},
+		{
+			"ImportPath": "sigs.k8s.io/structured-merge-diff/schema",
+			"Rev": "01332b709372d8d83b4d7653b30a1961680a47d5"
+		},
+		{
+			"ImportPath": "sigs.k8s.io/structured-merge-diff/typed",
+			"Rev": "01332b709372d8d83b4d7653b30a1961680a47d5"
+		},
+		{
+			"ImportPath": "sigs.k8s.io/structured-merge-diff/value",
+			"Rev": "01332b709372d8d83b4d7653b30a1961680a47d5"
 		},
 		{
 			"ImportPath": "sigs.k8s.io/yaml",

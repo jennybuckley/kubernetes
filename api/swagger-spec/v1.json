@@ -799,6 +799,14 @@
         "allowMultiple": false
        },
        {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
         "type": "string",
         "paramType": "path",
         "name": "namespace",
@@ -1812,6 +1820,14 @@
         "paramType": "query",
         "name": "dryRun",
         "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
         "required": false,
         "allowMultiple": false
        },
@@ -2833,6 +2849,14 @@
         "allowMultiple": false
        },
        {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
         "type": "string",
         "paramType": "path",
         "name": "namespace",
@@ -3850,6 +3874,14 @@
         "allowMultiple": false
        },
        {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
         "type": "string",
         "paramType": "path",
         "name": "namespace",
@@ -4724,6 +4756,14 @@
         "allowMultiple": false
        },
        {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
         "type": "string",
         "paramType": "path",
         "name": "name",
@@ -5143,6 +5183,14 @@
         "paramType": "query",
         "name": "dryRun",
         "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
         "required": false,
         "allowMultiple": false
        },
@@ -5687,6 +5735,14 @@
         "paramType": "query",
         "name": "dryRun",
         "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
         "required": false,
         "allowMultiple": false
        },
@@ -6536,6 +6592,14 @@
         "allowMultiple": false
        },
        {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
         "type": "string",
         "paramType": "path",
         "name": "name",
@@ -7124,6 +7188,14 @@
         "paramType": "query",
         "name": "dryRun",
         "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
         "required": false,
         "allowMultiple": false
        },
@@ -7731,6 +7803,14 @@
         "allowMultiple": false
        },
        {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
         "type": "string",
         "paramType": "path",
         "name": "namespace",
@@ -8283,6 +8363,14 @@
         "allowMultiple": false
        },
        {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
         "type": "string",
         "paramType": "path",
         "name": "name",
@@ -8636,6 +8724,14 @@
         "paramType": "query",
         "name": "dryRun",
         "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
         "required": false,
         "allowMultiple": false
        },
@@ -9228,6 +9324,14 @@
         "paramType": "query",
         "name": "dryRun",
         "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
         "required": false,
         "allowMultiple": false
        },
@@ -11109,6 +11213,14 @@
         "allowMultiple": false
        },
        {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
         "type": "string",
         "paramType": "path",
         "name": "namespace",
@@ -11705,6 +11817,14 @@
         "paramType": "query",
         "name": "dryRun",
         "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
         "required": false,
         "allowMultiple": false
        },
@@ -12726,6 +12846,14 @@
         "allowMultiple": false
        },
        {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
         "type": "string",
         "paramType": "path",
         "name": "namespace",
@@ -13329,6 +13457,14 @@
         "allowMultiple": false
        },
        {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
         "type": "string",
         "paramType": "path",
         "name": "namespace",
@@ -13511,6 +13647,14 @@
         "paramType": "query",
         "name": "dryRun",
         "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
         "required": false,
         "allowMultiple": false
        },
@@ -14111,6 +14255,14 @@
         "paramType": "query",
         "name": "dryRun",
         "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
         "required": false,
         "allowMultiple": false
        },
@@ -14718,6 +14870,14 @@
         "allowMultiple": false
        },
        {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
         "type": "string",
         "paramType": "path",
         "name": "namespace",
@@ -15314,6 +15474,14 @@
         "paramType": "query",
         "name": "dryRun",
         "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
         "required": false,
         "allowMultiple": false
        },
@@ -16335,6 +16503,14 @@
         "allowMultiple": false
        },
        {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
         "type": "string",
         "paramType": "path",
         "name": "namespace",
@@ -17245,6 +17421,14 @@
         "paramType": "query",
         "name": "dryRun",
         "description": "When present, indicates that modifications should not be persisted. An invalid or unrecognized dryRun directive will result in an error response and no further processing of the request. Valid values are: - All: all dry run stages will be processed",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
         "required": false,
         "allowMultiple": false
        },
@@ -18452,6 +18636,14 @@
         "allowMultiple": false
        },
        {
+        "type": "boolean",
+        "paramType": "query",
+        "name": "force",
+        "description": "Force is going to \"force\" Apply requests. It means user will re-acquire conflicting fields owned by other people. Force flag must be unset for non-apply patch requests.",
+        "required": false,
+        "allowMultiple": false
+       },
+       {
         "type": "string",
         "paramType": "path",
         "name": "namespace",
@@ -18613,6 +18805,10 @@
      "clusterName": {
       "type": "string",
       "description": "The name of the cluster which the object belongs to. This is used to distinguish resources with same name and namespace in different clusters. This field is not set anywhere right now and apiserver is going to ignore it if set in create or update request."
+     },
+     "managedFields": {
+      "type": "object",
+      "description": "ManagedFields is a map of workflow-id to the set of fields that are managed by that workflow. This is mostly for internal housekeeping, and users typically shouldn't need to set or understand this field. A workflow can be the user's name, a controller's name, or the name of a specific apply path like \"ci-cd\". The set of fields is always in the version that the workflow used when modifying the object."
      }
     }
    },
