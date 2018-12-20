@@ -477,6 +477,19 @@ func (s *GenericAPIServer) getOpenAPIModelsForGroup(apiPrefix string, apiGroupIn
 				}
 				name := openapiutil.GetCanonicalTypeName(sampleObject)
 				resourceNames = append(resourceNames, name)
+
+				// Find any cross group resources we might possibly convert to and add them
+				// TODO: handle pathsToIgnore better
+				for otherKind, _ := range apiGroupInfo.Scheme.AllKnownTypes() {
+					if canConvertBetween(kind, otherKind, apiGroupInfo.Scheme) {
+						otherSampleObject, err := apiGroupInfo.Scheme.New(otherKind)
+						if err != nil {
+							return nil, err
+						}
+						name := openapiutil.GetCanonicalTypeName(otherSampleObject)
+						resourceNames = append(resourceNames, name)
+					}
+				}
 			}
 		}
 	}
@@ -487,4 +500,32 @@ func (s *GenericAPIServer) getOpenAPIModelsForGroup(apiPrefix string, apiGroupIn
 		return nil, err
 	}
 	return utilopenapi.ToProtoModels(openAPISpec)
+}
+
+func canConvertBetween(fromKind, toKind schema.GroupVersionKind, scheme *runtime.Scheme) bool {
+	// Skip converting to types in same group
+	if fromKind.Group == toKind.Group {
+		return false
+	}
+	// Skip converting to internal types
+	if toKind.Version == runtime.APIVersionInternal {
+		return false
+	}
+	// Skip converting to types with different kind
+	if fromKind.Kind != toKind.Kind {
+		return false
+	}
+	// Drop the error here since we have already done this successfully
+	sampleObject, _ := scheme.New(fromKind)
+	// Try converting through hub versions in both fromKind's group and toKind's group
+	hubKinds := []schema.GroupVersionKind{fromKind, toKind}
+	for _, hubKind := range hubKinds {
+		hubVersion := hubKind.GroupKind().WithVersion(runtime.APIVersionInternal).GroupVersion()
+		if hubObject, err := scheme.ConvertToVersion(sampleObject, hubVersion); err == nil {
+			if _, err := scheme.ConvertToVersion(hubObject, toKind.GroupVersion()); err == nil {
+				return true
+			}
+		}
+	}
+	return false
 }
