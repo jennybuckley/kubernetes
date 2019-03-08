@@ -181,10 +181,6 @@ func (gv GroupVersion) String() string {
 		return ""
 	}
 
-	// special case of "v1" for backward compatibility
-	if len(gv.Group) == 0 && gv.Version == "v1" {
-		return gv.Version
-	}
 	if len(gv.Group) > 0 {
 		return gv.Group + "/" + gv.Version
 	}
