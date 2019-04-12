@@ -29,7 +29,7 @@ type ProtobufMarshaller interface {
 func (m *Unknown) NestedMarshalTo(data []byte, b ProtobufMarshaller, size uint64) (int, error) {
 	// Calculate the full size of the message.
 	msgSize := m.Size()
-	if size != 0 {
+	if b != nil {
 		msgSize += int(size) + sovGenerated(size) + 1
 	}
 
