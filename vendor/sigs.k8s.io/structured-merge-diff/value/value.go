@@ -24,13 +24,13 @@ import (
 // A Value is an object; it corresponds to an 'atom' in the schema.
 type Value struct {
 	// Exactly one of the below must be set.
-	FloatValue   *Float
-	IntValue     *Int
-	StringValue  *String
-	BooleanValue *Boolean
-	ListValue    *List
-	MapValue     *Map
-	Null         bool // represents an explicit `"foo" = null`
+	FloatValue   *Float `json:",omitempty"`
+	IntValue     *Int `json:",omitempty"`
+	StringValue  *String `json:",omitempty"`
+	BooleanValue *Boolean `json:",omitempty"`
+	ListValue    *List `json:",omitempty"`
+	MapValue     *Map `json:",omitempty"`
+	Null         bool `json:",omitempty"` // represents an explicit `"foo" = null`
 }
 
 type Int int64
