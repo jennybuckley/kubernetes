@@ -17,79 +17,33 @@ limitations under the License.
 package internal
 
 import (
+	"encoding/json"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"sigs.k8s.io/structured-merge-diff/fieldpath"
 )
 
-func newFields() metav1.Fields {
-	return metav1.Fields{Map: map[string]metav1.Fields{}}
-}
-
-func fieldsSet(f metav1.Fields, path fieldpath.Path, set *fieldpath.Set) error {
-	if len(f.Map) == 0 {
-		set.Insert(path)
+var EmptyFields metav1.Fields = func() metav1.Fields {
+	f, err := json.Marshal(fieldpath.NewSet())
+	if err != nil {
+		panic("should never happen")
 	}
-	for k := range f.Map {
-		if k == "." {
-			set.Insert(path)
-			continue
-		}
-		pe, err := NewPathElement(k)
-		if err != nil {
-			return err
-		}
-		path = append(path, pe)
-		err = fieldsSet(f.Map[k], path, set)
-		if err != nil {
-			return err
-		}
-		path = path[:len(path)-1]
-	}
-	return nil
-}
+	return metav1.Fields(string(f))
+}()
 
 // FieldsToSet creates a set paths from an input trie of fields
 func FieldsToSet(f metav1.Fields) (fieldpath.Set, error) {
 	set := fieldpath.Set{}
-	return set, fieldsSet(f, fieldpath.Path{}, &set)
-}
-
-func removeUselessDots(f metav1.Fields) metav1.Fields {
-	if _, ok := f.Map["."]; ok && len(f.Map) == 1 {
-		delete(f.Map, ".")
-		return f
-	}
-	for k, tf := range f.Map {
-		f.Map[k] = removeUselessDots(tf)
-	}
-	return f
+	err := json.Unmarshal([]byte(string(f)), &set)
+	return set, err
 }
 
 // SetToFields creates a trie of fields from an input set of paths
 func SetToFields(s fieldpath.Set) (metav1.Fields, error) {
-	var err error
-	f := newFields()
-	s.Iterate(func(path fieldpath.Path) {
-		if err != nil {
-			return
-		}
-		tf := f
-		for _, pe := range path {
-			var str string
-			str, err = PathElementString(pe)
-			if err != nil {
-				break
-			}
-			if _, ok := tf.Map[str]; ok {
-				tf = tf.Map[str]
-			} else {
-				tf.Map[str] = newFields()
-				tf = tf.Map[str]
-			}
-		}
-		tf.Map["."] = newFields()
-	})
-	f = removeUselessDots(f)
-	return f, err
+	f, err := json.Marshal(s)
+	if err != nil {
+		return EmptyFields, err
+	}
+	return metav1.Fields(string(f)), nil
 }

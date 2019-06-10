@@ -18,27 +18,15 @@ package internal
 
 import (
 	"reflect"
-	"strings"
 	"testing"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
-	"sigs.k8s.io/structured-merge-diff/fieldpath"
 )
 
 // TestFieldsRoundTrip tests that a fields trie can be round tripped as a path set
 func TestFieldsRoundTrip(t *testing.T) {
 	tests := []metav1.Fields{
-		{
-			Map: map[string]metav1.Fields{
-				"f:metadata": {
-					Map: map[string]metav1.Fields{
-						".":      newFields(),
-						"f:name": newFields(),
-					},
-				},
-			},
-		},
+		EmptyFields,
 	}
 
 	for _, test := range tests {
@@ -52,58 +40,6 @@ func TestFieldsRoundTrip(t *testing.T) {
 		}
 		if !reflect.DeepEqual(test, output) {
 			t.Fatalf("Expected round-trip:\ninput: %v\noutput: %v", test, output)
-		}
-	}
-}
-
-// TestFieldsToSetError tests that errors are picked up by FieldsToSet
-func TestFieldsToSetError(t *testing.T) {
-	tests := []struct {
-		fields    metav1.Fields
-		errString string
-	}{
-		{
-			fields: metav1.Fields{
-				Map: map[string]metav1.Fields{
-					"k:{invalid json}": {
-						Map: map[string]metav1.Fields{
-							".":      newFields(),
-							"f:name": newFields(),
-						},
-					},
-				},
-			},
-			errString: "invalid character",
-		},
-	}
-
-	for _, test := range tests {
-		_, err := FieldsToSet(test.fields)
-		if err == nil || !strings.Contains(err.Error(), test.errString) {
-			t.Fatalf("Expected error to contain %q but got: %v", test.errString, err)
-		}
-	}
-}
-
-// TestSetToFieldsError tests that errors are picked up by SetToFields
-func TestSetToFieldsError(t *testing.T) {
-	validName := "ok"
-	invalidPath := fieldpath.Path([]fieldpath.PathElement{{}, {FieldName: &validName}})
-
-	tests := []struct {
-		set       fieldpath.Set
-		errString string
-	}{
-		{
-			set:       *fieldpath.NewSet(invalidPath),
-			errString: "Invalid type of path element",
-		},
-	}
-
-	for _, test := range tests {
-		_, err := SetToFields(test.set)
-		if err == nil || !strings.Contains(err.Error(), test.errString) {
-			t.Fatalf("Expected error to contain %q but got: %v", test.errString, err)
 		}
 	}
 }

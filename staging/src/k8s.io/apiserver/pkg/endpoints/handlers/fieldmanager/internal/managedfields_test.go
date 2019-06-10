@@ -32,99 +32,30 @@ import (
 func TestRoundTripManagedFields(t *testing.T) {
 	tests := []string{
 		`- apiVersion: v1
-  fields:
-    v:3:
-      f:alsoPi: {}
-    v:3.1415:
-      f:pi: {}
-    v:false:
-      f:notTrue: {}
-  manager: foo
-  operation: Update
-  time: "2001-02-03T04:05:06Z"
+  fields: '{"Members":{},"Children":{"Members":{"[=3.1415]":{"PathElement":{"Value":{"FloatValue":3.1415}},"Set":{"Members":{"Members":{".pi":{"FieldName":"pi"}}},"Children":{}}},"[=3]":{"PathElement":{"Value":{"FloatValue":3}},"Set":{"Members":{"Members":{".alsoPi":{"FieldName":"alsoPi"}}},"Children":{}}},"[=false]":{"PathElement":{"Value":{"BooleanValue":false}},"Set":{"Members":{"Members":{".notTrue":{"FieldName":"notTrue"}}},"Children":{}}}}}}'
 - apiVersion: v1beta1
-  fields:
-    i:5:
-      f:i: {}
+  fields: '{"Members":{},"Children":{"Members":{"[5]":{"PathElement":{"Index":5},"Set":{"Members":{"Members":{".i":{"FieldName":"i"}}},"Children":{}}}}}}'
   manager: foo
   operation: Update
   time: "2011-12-13T14:15:16Z"
 `,
 		`- apiVersion: v1
-  fields:
-    f:spec:
-      f:containers:
-        k:{"name":"c"}:
-          f:image: {}
-          f:name: {}
+  fields: '{"Members":{},"Children":{"Members":{".spec":{"PathElement":{"FieldName":"spec"},"Set":{"Members":{},"Children":{"Members":{".containers":{"PathElement":{"FieldName":"containers"},"Set":{"Members":{},"Children":{"Members":{"[name=\"c\"]":{"PathElement":{"Key":[{"Name":"name","Value":{"StringValue":"c"}}]},"Set":{"Members":{"Members":{".image":{"FieldName":"image"},".name":{"FieldName":"name"}}},"Children":{}}}}}}}}}}}}}}'
   manager: foo
   operation: Apply
 `,
 		`- apiVersion: v1
-  fields:
-    f:apiVersion: {}
-    f:kind: {}
-    f:metadata:
-      f:labels:
-        f:app: {}
-      f:name: {}
-    f:spec:
-      f:replicas: {}
-      f:selector:
-        f:matchLabels:
-          f:app: {}
-      f:template:
-        f:medatada:
-          f:labels:
-            f:app: {}
-        f:spec:
-          f:containers:
-            k:{"name":"nginx"}:
-              .: {}
-              f:image: {}
-              f:name: {}
-              f:ports:
-                i:0:
-                  f:containerPort: {}
+  fields: '{"Members":{"Members":{".apiVersion":{"FieldName":"apiVersion"},".kind":{"FieldName":"kind"}}},"Children":{"Members":{".metadata":{"PathElement":{"FieldName":"metadata"},"Set":{"Members":{"Members":{".name":{"FieldName":"name"}}},"Children":{"Members":{".labels":{"PathElement":{"FieldName":"labels"},"Set":{"Members":{"Members":{".app":{"FieldName":"app"}}},"Children":{}}}}}}},".spec":{"PathElement":{"FieldName":"spec"},"Set":{"Members":{"Members":{".replicas":{"FieldName":"replicas"}}},"Children":{"Members":{".selector":{"PathElement":{"FieldName":"selector"},"Set":{"Members":{},"Children":{"Members":{".matchLabels":{"PathElement":{"FieldName":"matchLabels"},"Set":{"Members":{"Members":{".app":{"FieldName":"app"}}},"Children":{}}}}}}},".template":{"PathElement":{"FieldName":"template"},"Set":{"Members":{},"Children":{"Members":{".medatada":{"PathElement":{"FieldName":"medatada"},"Set":{"Members":{},"Children":{"Members":{".labels":{"PathElement":{"FieldName":"labels"},"Set":{"Members":{"Members":{".app":{"FieldName":"app"}}},"Children":{}}}}}}},".spec":{"PathElement":{"FieldName":"spec"},"Set":{"Members":{},"Children":{"Members":{".containers":{"PathElement":{"FieldName":"containers"},"Set":{"Members":{"Members":{"[name=\"nginx\"]":{"Key":[{"Name":"name","Value":{"StringValue":"nginx"}}]}}},"Children":{"Members":{"[name=\"nginx\"]":{"PathElement":{"Key":[{"Name":"name","Value":{"StringValue":"nginx"}}]},"Set":{"Members":{"Members":{".image":{"FieldName":"image"},".name":{"FieldName":"name"}}},"Children":{"Members":{".ports":{"PathElement":{"FieldName":"ports"},"Set":{"Members":{},"Children":{"Members":{"[0]":{"PathElement":{"Index":0},"Set":{"Members":{"Members":{".containerPort":{"FieldName":"containerPort"}}},"Children":{}}}}}}}}}}}}}}}}}}}}}}}}}}}}}}'
   manager: foo
   operation: Update
 `,
 		`- apiVersion: v1
-  fields:
-    f:allowVolumeExpansion: {}
-    f:apiVersion: {}
-    f:kind: {}
-    f:metadata:
-      f:name: {}
-      f:parameters:
-        f:resturl: {}
-        f:restuser: {}
-        f:secretName: {}
-        f:secretNamespace: {}
-    f:provisioner: {}
+  fields: '{"Members":{"Members":{".allowVolumeExpansion":{"FieldName":"allowVolumeExpansion"},".apiVersion":{"FieldName":"apiVersion"},".kind":{"FieldName":"kind"},".provisioner":{"FieldName":"provisioner"}}},"Children":{"Members":{".metadata":{"PathElement":{"FieldName":"metadata"},"Set":{"Members":{"Members":{".name":{"FieldName":"name"}}},"Children":{"Members":{".parameters":{"PathElement":{"FieldName":"parameters"},"Set":{"Members":{"Members":{".resturl":{"FieldName":"resturl"},".restuser":{"FieldName":"restuser"},".secretName":{"FieldName":"secretName"},".secretNamespace":{"FieldName":"secretNamespace"}}},"Children":{}}}}}}}}}}'
   manager: foo
   operation: Apply
 `,
 		`- apiVersion: v1
-  fields:
-    f:apiVersion: {}
-    f:kind: {}
-    f:metadata:
-      f:name: {}
-    f:spec:
-      f:group: {}
-      f:names:
-        f:kind: {}
-        f:plural: {}
-        f:shortNames:
-          i:0: {}
-        f:singular: {}
-      f:scope: {}
-      f:versions:
-        k:{"name":"v1"}:
-          f:name: {}
-          f:served: {}
-          f:storage: {}
+  fields: '{"Members":{"Members":{".apiVersion":{"FieldName":"apiVersion"},".kind":{"FieldName":"kind"}}},"Children":{"Members":{".metadata":{"PathElement":{"FieldName":"metadata"},"Set":{"Members":{"Members":{".name":{"FieldName":"name"}}},"Children":{}}},".spec":{"PathElement":{"FieldName":"spec"},"Set":{"Members":{"Members":{".group":{"FieldName":"group"},".scope":{"FieldName":"scope"}}},"Children":{"Members":{".names":{"PathElement":{"FieldName":"names"},"Set":{"Members":{"Members":{".kind":{"FieldName":"kind"},".plural":{"FieldName":"plural"},".singular":{"FieldName":"singular"}}},"Children":{"Members":{".shortNames":{"PathElement":{"FieldName":"shortNames"},"Set":{"Members":{"Members":{"[0]":{"Index":0}}},"Children":{}}}}}}},".versions":{"PathElement":{"FieldName":"versions"},"Set":{"Members":{},"Children":{"Members":{"[name=\"v1\"]":{"PathElement":{"Key":[{"Name":"name","Value":{"StringValue":"v1"}}]},"Set":{"Members":{"Members":{".name":{"FieldName":"name"},".served":{"FieldName":"served"},".storage":{"FieldName":"storage"}}},"Children":{}}}}}}}}}}}}}}'
   manager: foo
   operation: Update
 `,
@@ -163,8 +94,6 @@ func TestBuildManagerIdentifier(t *testing.T) {
 		{
 			managedFieldsEntry: `
 apiVersion: v1
-fields:
-  f:apiVersion: {}
 manager: foo
 operation: Update
 time: "2001-02-03T04:05:06Z"
@@ -174,8 +103,6 @@ time: "2001-02-03T04:05:06Z"
 		{
 			managedFieldsEntry: `
 apiVersion: v1
-fields:
-  f:apiVersion: {}
 manager: foo
 operation: Apply
 time: "2001-02-03T04:05:06Z"
