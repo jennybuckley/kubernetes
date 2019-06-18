@@ -481,41 +481,14 @@ func (u *Unstructured) SetClusterName(clusterName string) {
 	u.setNestedField(clusterName, "metadata", "clusterName")
 }
 
-func (u *Unstructured) GetManagedFields() []metav1.ManagedFieldsEntry {
-	items, found, err := NestedSlice(u.Object, "metadata", "managedFields")
-	if !found || err != nil {
-		return nil
-	}
-	managedFields := []metav1.ManagedFieldsEntry{}
-	for _, item := range items {
-		m, ok := item.(map[string]interface{})
-		if !ok {
-			utilruntime.HandleError(fmt.Errorf("unable to retrieve managedFields for object, item %v is not a map", item))
-			return nil
-		}
-		out := metav1.ManagedFieldsEntry{}
-		if err := runtime.DefaultUnstructuredConverter.FromUnstructured(m, &out); err != nil {
-			utilruntime.HandleError(fmt.Errorf("unable to retrieve managedFields for object: %v", err))
-			return nil
-		}
-		managedFields = append(managedFields, out)
-	}
-	return managedFields
+func (u *Unstructured) GetManagedFieldsBytes() string {
+	return getNestedString(u.Object, "metadata", "managedFieldsBytes")
 }
 
-func (u *Unstructured) SetManagedFields(managedFields []metav1.ManagedFieldsEntry) {
-	if managedFields == nil {
-		RemoveNestedField(u.Object, "metadata", "managedFields")
+func (u *Unstructured) SetManagedFieldsBytes(managedFieldsBytes string) {
+	if len(managedFieldsBytes) == 0 {
+		RemoveNestedField(u.Object, "metadata", "managedFieldsBytes")
 		return
 	}
-	items := []interface{}{}
-	for _, managedFieldsEntry := range managedFields {
-		out, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&managedFieldsEntry)
-		if err != nil {
-			utilruntime.HandleError(fmt.Errorf("unable to set managedFields for object: %v", err))
-			return
-		}
-		items = append(items, out)
-	}
-	u.setNestedSlice(items, "metadata", "managedFields")
+	u.setNestedField(managedFieldsBytes, "metadata", "managedFieldsBytes")
 }

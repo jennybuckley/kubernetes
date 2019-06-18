@@ -268,6 +268,19 @@ type ObjectMeta struct {
 	// +optional
 	ClusterName string `json:"clusterName,omitempty" protobuf:"bytes,15,opt,name=clusterName"`
 
+	// ManagedFieldsBytes is a serialized representation of ManagedFields.
+	//
+	// This field is alpha and can be changed or removed without notice.
+	//
+	// +optional
+	ManagedFieldsBytes string `json:"managedFieldsBytes,omitempty" protobuf:"bytes,18,rep,name=managedFields"`
+	// +k8s:deprecated=managedFields,protobuf=17
+}
+
+// ManagedFields maps workflow-id and version to the set of fields that are managed by that workflow.
+type ManagedFields struct {
+	TypeMeta `json:",inline"`
+
 	// ManagedFields maps workflow-id and version to the set of fields
 	// that are managed by that workflow. This is mostly for internal
 	// housekeeping, and users typically shouldn't need to set or
@@ -279,7 +292,7 @@ type ObjectMeta struct {
 	// This field is alpha and can be changed or removed without notice.
 	//
 	// +optional
-	ManagedFields []ManagedFieldsEntry `json:"managedFields,omitempty" protobuf:"bytes,17,rep,name=managedFields"`
+	ManagedFields []ManagedFieldsEntry `json:"managedFields,omitempty" protobuf:"bytes,1,rep,name=managedFields"`
 }
 
 // Initializers tracks the progress of initialization.
