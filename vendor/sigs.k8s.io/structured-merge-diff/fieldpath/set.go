@@ -24,12 +24,12 @@ import (
 type Set struct {
 	// Members lists fields that are part of the set.
 	// TODO: will be serialized as a list of path elements.
-	Members PathElementSet
+	Members PathElementSet `json:",omitempty"`
 
 	// Children lists child fields which themselves have children that are
-	// members of the set. Appearance in this list does not imply membership.
+	// Members of the set. Appearance in this list does not imply Membership.
 	// Note: this is a tree, not an arbitrary graph.
-	Children SetNodeMap
+	Children SetNodeMap `json:",omitempty"`
 }
 
 // NewSet makes a set from a list of paths.
@@ -93,12 +93,12 @@ func (s *Set) Difference(s2 *Set) *Set {
 	}
 }
 
-// Size returns the number of members of the set.
+// Size returns the number of Members of the set.
 func (s *Set) Size() int {
 	return s.Members.Size() + s.Children.Size()
 }
 
-// Empty returns true if there are no members of the set. It is a separate
+// Empty returns true if there are no Members of the set. It is a separate
 // function from Size since it's common to check whether size > 0, and
 // potentially much faster to return as soon as a single element is found.
 func (s *Set) Empty() bool {
@@ -127,7 +127,7 @@ func (s *Set) Has(p Path) bool {
 	}
 }
 
-// Equals returns true if s and s2 have exactly the same members.
+// Equals returns true if s and s2 have exactly the same Members.
 func (s *Set) Equals(s2 *Set) bool {
 	return s.Members.Equals(&s2.Members) && s.Children.Equals(&s2.Children)
 }
@@ -163,48 +163,48 @@ func (s *Set) WithPrefix(pe PathElement) *Set {
 	return subset
 }
 
-// setNode is a pair of PathElement / Set, for the purpose of expressing
-// nested set membership.
-type setNode struct {
-	pathElement PathElement
-	set         *Set
+// SetNode is a pair of PathElement / Set, for the purpose of expressing
+// nested set Membership.
+type SetNode struct {
+	PathElement PathElement
+	Set         *Set
 }
 
 // SetNodeMap is a map of PathElement to subset.
 type SetNodeMap struct {
-	members map[string]setNode
+	Members map[string]SetNode `json:",omitempty"`
 }
 
 // Descend adds pe to the set if necessary, returning the associated subset.
 func (s *SetNodeMap) Descend(pe PathElement) *Set {
 	serialized := pe.String()
-	if s.members == nil {
-		s.members = map[string]setNode{}
+	if s.Members == nil {
+		s.Members = map[string]SetNode{}
 	}
-	if n, ok := s.members[serialized]; ok {
-		return n.set
+	if n, ok := s.Members[serialized]; ok {
+		return n.Set
 	}
 	ss := &Set{}
-	s.members[serialized] = setNode{
-		pathElement: pe,
-		set:         ss,
+	s.Members[serialized] = SetNode{
+		PathElement: pe,
+		Set:         ss,
 	}
 	return ss
 }
 
-// Size returns the sum of the number of members of all subsets.
+// Size returns the sum of the number of Members of all subsets.
 func (s *SetNodeMap) Size() int {
 	count := 0
-	for _, v := range s.members {
-		count += v.set.Size()
+	for _, v := range s.Members {
+		count += v.Set.Size()
 	}
 	return count
 }
 
 // Empty returns false if there's at least one member in some child set.
 func (s *SetNodeMap) Empty() bool {
-	for _, n := range s.members {
-		if !n.set.Empty() {
+	for _, n := range s.Members {
+		if !n.Set.Empty() {
 			return false
 		}
 	}
@@ -213,12 +213,12 @@ func (s *SetNodeMap) Empty() bool {
 
 // Get returns (the associated set, true) or (nil, false) if there is none.
 func (s *SetNodeMap) Get(pe PathElement) (*Set, bool) {
-	if s.members == nil {
+	if s.Members == nil {
 		return nil, false
 	}
 	serialized := pe.String()
-	if n, ok := s.members[serialized]; ok {
-		return n.set, true
+	if n, ok := s.Members[serialized]; ok {
+		return n.Set, true
 	}
 	return nil, false
 }
@@ -226,50 +226,50 @@ func (s *SetNodeMap) Get(pe PathElement) (*Set, bool) {
 // Equals returns true if s and s2 have the same structure (same nested
 // child sets).
 func (s *SetNodeMap) Equals(s2 *SetNodeMap) bool {
-	if len(s.members) != len(s2.members) {
+	if len(s.Members) != len(s2.Members) {
 		return false
 	}
-	for k, v := range s.members {
-		v2, ok := s2.members[k]
+	for k, v := range s.Members {
+		v2, ok := s2.Members[k]
 		if !ok {
 			return false
 		}
-		if !v.set.Equals(v2.set) {
+		if !v.Set.Equals(v2.Set) {
 			return false
 		}
 	}
 	return true
 }
 
-// Union returns a SetNodeMap with members that appear in either s or s2.
+// Union returns a SetNodeMap with Members that appear in either s or s2.
 func (s *SetNodeMap) Union(s2 *SetNodeMap) *SetNodeMap {
 	out := &SetNodeMap{}
-	for k, sn := range s.members {
-		pe := sn.pathElement
-		if sn2, ok := s2.members[k]; ok {
-			*out.Descend(pe) = *sn.set.Union(sn2.set)
+	for k, sn := range s.Members {
+		pe := sn.PathElement
+		if sn2, ok := s2.Members[k]; ok {
+			*out.Descend(pe) = *sn.Set.Union(sn2.Set)
 		} else {
-			*out.Descend(pe) = *sn.set
+			*out.Descend(pe) = *sn.Set
 		}
 	}
-	for k, sn2 := range s2.members {
-		pe := sn2.pathElement
-		if _, ok := s.members[k]; ok {
+	for k, sn2 := range s2.Members {
+		pe := sn2.PathElement
+		if _, ok := s.Members[k]; ok {
 			// already handled
 			continue
 		}
-		*out.Descend(pe) = *sn2.set
+		*out.Descend(pe) = *sn2.Set
 	}
 	return out
 }
 
-// Intersection returns a SetNodeMap with members that appear in both s and s2.
+// Intersection returns a SetNodeMap with Members that appear in both s and s2.
 func (s *SetNodeMap) Intersection(s2 *SetNodeMap) *SetNodeMap {
 	out := &SetNodeMap{}
-	for k, sn := range s.members {
-		pe := sn.pathElement
-		if sn2, ok := s2.members[k]; ok {
-			i := *sn.set.Intersection(sn2.set)
+	for k, sn := range s.Members {
+		pe := sn.PathElement
+		if sn2, ok := s2.Members[k]; ok {
+			i := *sn.Set.Intersection(sn2.Set)
 			if !i.Empty() {
 				*out.Descend(pe) = i
 			}
@@ -278,19 +278,19 @@ func (s *SetNodeMap) Intersection(s2 *SetNodeMap) *SetNodeMap {
 	return out
 }
 
-// Difference returns a SetNodeMap with members that appear in s but not in s2.
+// Difference returns a SetNodeMap with Members that appear in s but not in s2.
 func (s *SetNodeMap) Difference(s2 *Set) *SetNodeMap {
 	out := &SetNodeMap{}
-	for k, sn := range s.members {
-		pe := sn.pathElement
-		if sn2, ok := s2.Children.members[k]; ok {
-			diff := *sn.set.Difference(sn2.set)
+	for k, sn := range s.Members {
+		pe := sn.PathElement
+		if sn2, ok := s2.Children.Members[k]; ok {
+			diff := *sn.Set.Difference(sn2.Set)
 			// We aren't permitted to add nodes with no elements.
 			if !diff.Empty() {
 				*out.Descend(pe) = diff
 			}
 		} else {
-			*out.Descend(pe) = *sn.set
+			*out.Descend(pe) = *sn.Set
 		}
 	}
 	return out
@@ -298,14 +298,14 @@ func (s *SetNodeMap) Difference(s2 *Set) *SetNodeMap {
 
 // Iterate calls f for each PathElement in the set.
 func (s *SetNodeMap) Iterate(f func(PathElement)) {
-	for _, n := range s.members {
-		f(n.pathElement)
+	for _, n := range s.Members {
+		f(n.PathElement)
 	}
 }
 
 func (s *SetNodeMap) iteratePrefix(prefix Path, f func(Path)) {
-	for _, n := range s.members {
-		pe := n.pathElement
-		n.set.iteratePrefix(append(prefix, pe), f)
+	for _, n := range s.Members {
+		pe := n.PathElement
+		n.Set.iteratePrefix(append(prefix, pe), f)
 	}
 }
