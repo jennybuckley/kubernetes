@@ -36,7 +36,7 @@ func RemoveObjectManagedFields(obj runtime.Object) {
 	if err != nil {
 		panic(fmt.Sprintf("couldn't get accessor: %v", err))
 	}
-	accessor.SetManagedFields(nil)
+	accessor.SetManagedFieldsBytes(nil)
 }
 
 // DecodeObjectManagedFields extracts and converts the objects ManagedFields into a fieldpath.ManagedFields.
@@ -49,7 +49,9 @@ func DecodeObjectManagedFields(from runtime.Object) (fieldpath.ManagedFields, er
 		panic(fmt.Sprintf("couldn't get accessor: %v", err))
 	}
 
-	managed, err := decodeManagedFields(accessor.GetManagedFields())
+	// TODO: unmarshal without using json
+	managed := make(map[string]*fieldpath.VersionedSet)
+	err := json.Unmarshal([]byte(accessor.GetManagedFieldsBytes()), &managed)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert managed fields from API: %v", err)
 	}
@@ -63,13 +65,36 @@ func EncodeObjectManagedFields(obj runtime.Object, fields fieldpath.ManagedField
 		panic(fmt.Sprintf("couldn't get accessor: %v", err))
 	}
 
-	managed, err := encodeManagedFields(fields)
+	// TODO: marshal without using json
+	encodedManagedFields, err := json.Marshal(fields)
 	if err != nil {
 		return fmt.Errorf("failed to convert back managed fields to API: %v", err)
 	}
-	accessor.SetManagedFields(managed)
+	accessor.SetManagedFieldsBytes(encodedManagedFields)
 
 	return nil
+}
+
+// DecodeSubresourceManagedFields extracts and converts the metav1.ManagedFields into a fieldpath.ManagedFields.
+func DecodeSubresourceManagedFields(from metav1.ManagedFields) (fieldpath.ManagedFields, error) {
+	managed, err := decodeManagedFields(from.ManagedFields)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert managed fields from API: %v", err)
+	}
+	return managed, nil
+}
+
+// EncodeSubresourceManagedFields converts and stores the fieldpathManagedFields into the metav1.ManagedFields.
+func EncodeSubresourceManagedFields(from fieldpath.ManagedFields) (metav1.ManagedFields, error) {
+	managed, err := encodeManagedFields(from)
+	if err != nil {
+		return metav1.ManagedFields{}, fmt.Errorf("failed to convert back managed fields to API: %v", err)
+	}
+	return metav1.ManagedFields{
+		APIVersion: "meta/v1",
+		Kind: "ManagedFields",
+		ManagedFields: managed,
+	}, nil
 }
 
 // decodeManagedFields converts ManagedFields from the wire format (api format)
