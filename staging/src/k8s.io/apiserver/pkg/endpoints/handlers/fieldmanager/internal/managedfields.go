@@ -119,7 +119,7 @@ func decodeVersionedSet(encodedVersionedSet *metav1.ManagedFieldsEntry) (version
 		versionedSet.Applied = true
 	}
 
-	fields := metav1.Fields{}
+	fields := EmptyFields
 	if encodedVersionedSet.Fields != nil {
 		fields = *encodedVersionedSet.Fields
 	}
