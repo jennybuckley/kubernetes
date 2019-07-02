@@ -9,7 +9,7 @@ You may obtain a copy of the License at
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implies.
 See the License for the specific language governing permissions and
 limitations under the License.
 */
@@ -18,6 +18,8 @@ package filters
 
 import (
 	"fmt"
+	"hash/fnv"
+	"math"
 	"net/http"
 	"sync/atomic"
 	"time"
@@ -34,6 +36,8 @@ import (
 	apirequest "k8s.io/apiserver/pkg/endpoints/request"
 	kubeinformers "k8s.io/client-go/informers"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/apiserver/pkg/server/filters/fq"
+	"k8s.io/apiserver/pkg/server/filters/reqmgmt/inflight"
 	restclient "k8s.io/client-go/rest"
 	cache "k8s.io/client-go/tools/cache"
 	workqueue "k8s.io/client-go/util/workqueue"
@@ -49,7 +53,7 @@ import (
 // FairQueuingFactory knows how to make FairQueueingSystem objects.
 // This filter makes a FairQueuingSystem for each priority level.
 type FairQueuingFactory interface {
-	NewFairQueuingSystem(concurrencyLimit, numQueues, queueLengthLimit int, requestWaitLimit time.Duration, clk clock.Clock) FairQueuingSystem
+	NewFairQueuingSystem(numQueues, queueLengthLimit int, requestWaitLimit time.Duration, clk clock.Clock) FairQueuingSystem
 }
 
 // FairQueuingSystem is the abstraction for the queuing and
@@ -105,9 +109,231 @@ type EmptyHandler interface {
 	HandleEmpty()
 }
 
+type FairQueuingSystemImpl struct {
+	lock sync.Mutex
+	// queues                   []*inflight.Queue
+	fqq                      *inflight.FQScheduler
+	concurrencyLimit         int
+	assuredConcurrencyShares int
+	actualnumqueues          int // TODO(aaron-prindle) currently not updated/used...
+	numqueues                int
+	queueLengthLimit         int
+	requestWaitLimit         time.Duration
+}
+
+// initQueues is a convenience method for initializing an array of n queues
+func initQueues(numQueues int) []fq.FQQueue {
+	queues := make([]*fq.Queue, 0, numQueues)
+	for i := 0; i < numQueues; i++ {
+		queues = append(queues, &fq.Queue{})
+		packets := []*fq.Packet{}
+		fqpackets := make([]fq.FQPacket, len(packets), len(packets))
+		for i := range packets {
+			fqpackets[i] = fqpackets[i]
+		}
+		queues[i].Packets = fqpackets
+	}
+
+	fqqueues := make([]fq.FQQueue, len(queues), len(queues))
+	for i := range queues {
+		fqqueues[i] = queues[i]
+	}
+
+	return fqqueues
+}
+
+func NewFairQueuingSystem(numQueues, queueLengthLimit int, requestWaitLimit time.Duration, clk clock.Clock) FairQueuingSystem {
+	return &FairQueuingSystemImpl{
+		// queues: queues,
+		fqq: inflight.NewFQScheduler(initQueues(numQueues), clk),
+		// TODO(aaron-prindle) concurrency limit is updated dynamically
+		// concurrencyLimit: 0,
+		numqueues:        numQueues,
+		queueLengthLimit: queueLengthLimit,
+		requestWaitLimit: requestWaitLimit,
+	}
+}
+
+func (s *FairQueuingSystemImpl) SetConcurrencyLimit(concurrencyLimit int) {
+	s.concurrencyLimit = concurrencyLimit
+}
+
+func (s *FairQueuingSystemImpl) SetDesiredNumQueues(numqueues int) {
+	s.numqueues = numqueues
+}
+
+func (s *FairQueuingSystemImpl) GetDesiredNumQueues() int {
+	return s.numqueues
+}
+
+func (s *FairQueuingSystemImpl) GetActualNumQueues() int {
+	return s.actualnumqueues
+}
+
+func (s *FairQueuingSystemImpl) SetQueueLengthLimit(queueLengthLimit int) {
+	s.queueLengthLimit = queueLengthLimit
+}
+
+func (s *FairQueuingSystemImpl) SetRequestWaitLimit(requestWaitLimit time.Duration) {
+	s.requestWaitLimit = requestWaitLimit
+}
+
+func (s *FairQueuingSystemImpl) DoOnEmpty(func()) {
+	// When an undesired queue becomes empty it is
+	// deleted and the fair queuing round-robin pointer is advanced if it was
+	// pointing to that queue.
+
+	// DoOnEmpty is part of how a priority level gets shut down.  Read the PR
+	// I have open that adds a section to the KEP discussing how the filter
+	// handles changes in the configuration objects. (edited)
+
+	panic("not implemented")
+}
+
+// TODO(aaron-prindle) DEBUG - remove seq
+var seq = 1
+
+func (s *FairQueuingSystemImpl) Wait(hashValue uint64, handSize int32) (execute bool, afterExecution func()) {
+	// Wait, in the happy case, shuffle shards the given request into
+	// a queue and eventually dispatches the request from that queue.
+	// Dispatching means to return with `execute==true`.  In the
+	// unhappy cases the request is eventually rejected, which means
+	// to return with `execute=false`.  In the happy case the caller
+	// is required to invoke the returned `afterExecution` after the
+	// request is done executing.  The hash value and hand size are
+	// used to do the shuffle sharding.
+
+	// TODO(aaron-prindle) verify what should/shouldn't be locked!!!!
+
+	//	So that starts with the shuffle sharding, to pick a queue.
+	queueIdx := s.fqq.ChooseQueueIdx(hashValue, int(handSize))
+
+	// The next
+	// step is the logic to reject requests that have been waiting too long.  I
+	// imagine that each request has a channel of `struct {execute bool,
+	// afterExecution func()}`.
+	// --
+	// NOTE: currently timeout is only checked for each new request.  This means that there can be
+	// requests that are in the queue longer than the timeout if there are no new requests
+	// We think this is a fine tradeoff
+	func() {
+		// TODO(aaron-prindle) verify if this actually needs to be locked...
+		s.lock.Lock()
+		defer s.lock.Unlock()
+
+		now := time.Now()
+		queues := s.fqq.GetQueues()
+		fmt.Printf("s.requestWaitLimit: %v\n", s.requestWaitLimit)
+		fmt.Printf("queueIdx: %v\n", queueIdx)
+		queue := queues[queueIdx]
+		pkts := queue.GetPackets()
+		// pkts are sorted oldest -> newest
+		// can short circuit loop (break) if oldest packets are not timing out
+		//  as newer packets also will not have timed out
+		for _, pkt := range pkts {
+			channelPkt := pkt.(*inflight.Packet)
+			limit := channelPkt.EnqueueTime.Add(s.requestWaitLimit)
+			if now.After(limit) {
+
+				channelPkt.DequeueChannel <- false
+			} else {
+				break
+			}
+		}
+	}()
+
+	// The next step is to reject the newly
+	// arrived request if the number executing is at least the priority
+	// level's assured concurrency value (I forgot to mention this part
+	// in the KEP; I hope it is obvious why this condition is needed)
+	// AND the chosen queue is at or exceeding its current length
+	// limit.
+	shouldReject := false
+	var pkt fq.FQPacket
+	func() {
+		// lock for enqueue for queue length check and increment
+		s.lock.Lock()
+		defer s.lock.Unlock()
+
+		queues := s.fqq.GetQueues()
+		curQueueLength := len(queues[queueIdx].GetPackets())
+		fmt.Printf("curQueueLength: %v\n", curQueueLength)
+		fmt.Printf("s.fqq.QueueLengthLimit: %v\n", s.queueLengthLimit)
+
+		if s.fqq.GetRequestsExecuting() >= s.concurrencyLimit && curQueueLength >= s.fqq.QueueLengthLimit {
+			shouldReject = true
+			return
+		}
+
+		// ENQUEUE - Assuming the newly arrived request has not been rejected,
+		// the next step is to put it in the queue.
+		pkt = fq.FQPacket(&inflight.Packet{
+			DequeueChannel: make(chan bool, 1),
+			Seq:            seq,
+			EnqueueTime:    time.Now(),
+		})
+		// can't set nested struct val in initializer
+		pkt.SetQueueIdx(queueIdx)
+		// TODO(aaron-prindle) REMOVE - DEBUG - remove seq
+		seq++
+
+		// TODO(aaron-prindle) make it so enqueue fails if the queues are full?
+		// --
+		// I think this is taken care of by the check above, need to verify
+		s.fqq.Enqueue(pkt)
+
+		channelPkt := pkt.(*inflight.Packet)
+		// TODO(aaron-prindle) REMOVE - DEBUG
+		fmt.Printf("ENQUEUED: %d\n", channelPkt.Seq)
+	}()
+	if shouldReject {
+		return false, func() {}
+	}
+	// The next step is to invoke the method that
+	// dequeues as much as possible.  This method runs a loop, as long as there
+	// are non-empty queues and the number currently executing is less than the
+	// assured concurrency value.  The body of the loop uses the fair queuing
+	// technique to pick a queue, dequeue the request at the head of that
+	// queue, increment the count of the number executing, and send `{true,
+	// handleCompletion(that dequeued request)}` to the request's channel.
+	for !s.fqq.IsEmpty() && s.fqq.GetRequestsExecuting() < s.concurrencyLimit {
+		fmt.Printf("s.fqq.GetRequestsExecuting(): %v\n", s.fqq.GetRequestsExecuting())
+		s.fqq.Dequeue()
+	}
+
+	// After that method finishes its loop and returns, the final step in Wait
+	// is to `select` on either request timeout or receipt of a record on the
+	// newly arrived request's channel, and return appropriately.  If a record
+	// has been sent to the request's channel then this `select` will
+	// immediately complete (this is what I meant in my earlier remark about
+	// waiting only if the concurrency limit is reached).
+	channelPkt := pkt.(*inflight.Packet)
+	// I am glossing over the
+	// details of getting the request's channel closed properly; I assume you
+	// can work that out.
+	//--
+	// see staging/src/k8s.io/apiserver/pkg/server/filters/reqmgmt.go:144
+
+	select {
+	case execute := <-channelPkt.DequeueChannel:
+		if execute {
+			// execute
+			return true, func() { s.fqq.FinishPacketAndDequeueNextPacket(pkt) }
+		}
+		// timed out
+		fmt.Printf("channelPkt.DequeueChannel timed out\n")
+		// klog.V(5).Infof("channelPkt.DequeueChannel timed out\n")
+		return false, func() {}
+	}
+
+}
+
 // RMState is the variable state that this filter is working with at a
 // given point in time.
 type RMState struct {
+	// TODO(aaron-prindle) remove?
+	serverConcurrencyLimit int
+
 	// flowSchemas holds the flow schema objects, sorted by increasing
 	// numerical (decreasing logical) matching precedence.  Each
 	// FlowSchema object is immutable.
@@ -117,6 +343,17 @@ type RMState struct {
 	// name to the state for that level.  Each PriorityLevelState is
 	// immutable.
 	priorityLevelStates map[string]*PriorityLevelState
+}
+
+func (r *RMState) updateACV(ps *PriorityLevelState) {
+	// ACV(l) = ceil( SCL * ACS(l) / ( sum[priority levels k] ACS(k) ) )
+	denom := 0
+	for _, pl := range r.priorityLevelStates {
+		denom += int(pl.config.AssuredConcurrencyShares)
+		// denom += ACS(prioritylvl, queues)
+	}
+	ps.concurrencyLimit = int(math.Ceil(float64(r.serverConcurrencyLimit * int(ps.config.AssuredConcurrencyShares) / denom)))
+	// return int(math.Ceil(float64(SCL * ACS(pl, queues) / denom)))
 }
 
 // FlowSchemaSeq holds sorted set of pointers to FlowSchema objects.
@@ -214,7 +451,28 @@ func rmSetup(kubeClient kubernetes.Interface, serverConcurrencyLimit int, reques
 		return nil
 	}
 	// TODO: finish implementation
+
+	// TODO(aaron-prindle) figure out what needs to be done...
+	// fetch related k8s objects - FlowSchemas, RequestPriorityLevels
 	return reqMgmt
+}
+
+func initPriorityLevelStates(plcs []*rmtypesv1a1.PriorityLevelConfiguration, requestWaitLimit time.Duration) map[string]*PriorityLevelState {
+	pls := map[string]*PriorityLevelState{}
+
+	// TODO(aaron-prindle) change this to a test method and change clock to be
+	// clk := clock.RealClock{}
+	clk := clock.RealClock{}
+
+	for _, plc := range plcs {
+
+		pls[plc.Name] = &PriorityLevelState{
+			config: plc.Spec,
+			fqs: NewFairQueuingSystem(int(plc.Spec.Queues),
+				int(plc.Spec.QueueLengthLimit), requestWaitLimit, clk),
+		}
+	}
+	return pls
 }
 
 // WithRequestManagement limits the number of in-flight requests in a fine-grained way
@@ -250,18 +508,23 @@ func WithRequestManagementByClient(
 	}
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ctx := r.Context()
-		requestInfo, ok := apirequest.RequestInfoFrom(ctx)
-		if !ok {
-			handleError(w, r, fmt.Errorf("no RequestInfo found in context, handler chain must be wrong"))
-			return
-		}
+		// =======================
+		// TODO(aaron-prindle) CHANGE removed for early testing
+		// ctx := r.Context()
+		// requestInfo, ok := apirequest.RequestInfoFrom(ctx)
+		// if !ok {
+		// 	handleError(w, r, fmt.Errorf("no RequestInfo found in context, handler chain must be wrong"))
+		// 	return
+		// }
 
 		// Skip tracking long running events.
-		if longRunningRequestCheck != nil && longRunningRequestCheck(r, requestInfo) {
-			handler.ServeHTTP(w, r)
-			return
-		}
+		// if longRunningRequestCheck != nil && longRunningRequestCheck(r, requestInfo) {
+		// 	handler.ServeHTTP(w, r)
+		// 	return
+		// }
+
+		// get state of regMgmnt so we know all the obj/config values
+		// rmState := reqMgmt.curState.Load().(*RMState)
 
 		for {
 			rmState := reqMgmt.curState.Load().(*RMState)
@@ -298,27 +561,75 @@ func WithRequestManagementByClient(
 				tooManyRequests(r, w)
 			}
 		}
-
-		return
-	})
 }
 
-func (requestManagement) computeFlowDistinguisher(r *http.Request, fs *rmtypesv1a1.FlowSchema) string {
-	// TODO: implement
-	return ""
+func hash(s string) uint64 {
+	h := fnv.New64a()
+	h.Write([]byte(s))
+	return h.Sum64()
 }
 
-func (requestManagement) hashFlowID(fsName, fDistinguisher string) uint64 {
+// func (requestManagement) computeFlowDistinguisher(r *http.Request, fs *rmtypesv1a1.FlowSchema) string {
+// 	// TODO: implement
+// 	// TODO(aaron-prindle) CHANGE replace w/ proper implementation
+// 	return fs.Name
+// }
+
+// func (requestManagement) hashFlowID(fsName, fDistinguisher string) uint64 {
+// 	// TODO: implement
+// 	// TODO(aaron-prindle) verify implementation
+// 	return hash(fmt.Sprintf("%s,%s", fsName, fDistinguisher))
+// }
+
+// func (requestManagement) pickFlowSchema(r *http.Request, flowSchemas FlowSchemaSeq, priorityLevelStates map[string]*PriorityLevelState) *rmtypesv1a1.FlowSchema {
+// 	// TODO(aaron-prindle) CHANGE replace w/ proper implementation
+// 	priority := r.Header.Get("PRIORITY")
+// 	idx, err := strconv.Atoi(priority)
+// 	if err != nil {
+// 		panic("strconv.Atoi(priority) errored")
+// 	}
+// 	// TODO(aaron-prindle) can also use MatchingPrecedence for dummy method
+// 	return flowSchemas[idx]
+// }
+
+// func (requestManagement) requestPriorityState(r *http.Request, fs *rmtypesv1a1.FlowSchema, priorityLevelStates map[string]*PriorityLevelState) *PriorityLevelState {
+// 	// TODO: implement
+// 	out, ok := priorityLevelStates[fs.Spec.PriorityLevelConfiguration.Name]
+// 	if !ok {
+// 		panic("NOT OK!!")
+// 	}
+// 	return out
+// }
+
+func computeFlowDistinguisher(r *http.Request, fs *rmtypesv1a1.FlowSchema) string {
 	// TODO: implement
-	return 0
+	// TODO(aaron-prindle) CHANGE replace w/ proper implementation
+	return fs.Name
 }
 
-func (requestManagement) pickFlowSchema(r *http.Request, flowSchemas FlowSchemaSeq, priorityLevelStates map[string]*PriorityLevelState) *rmtypesv1a1.FlowSchema {
+func hashFlowID(fsName, fDistinguisher string) uint64 {
 	// TODO: implement
-	return nil
+	// TODO(aaron-prindle) verify implementation
+	return hash(fmt.Sprintf("%s,%s", fsName, fDistinguisher))
 }
 
-func (requestManagement) requestPriorityState(r *http.Request, fs *rmtypesv1a1.FlowSchema, priorityLevelStates map[string]*PriorityLevelState) *PriorityLevelState {
+func pickFlowSchema(r *http.Request, flowSchemas FlowSchemaSeq, priorityLevelStates map[string]*PriorityLevelState) *rmtypesv1a1.FlowSchema {
+	// TODO(aaron-prindle) CHANGE replace w/ proper implementation
+	priority := r.Header.Get("PRIORITY")
+	idx, err := strconv.Atoi(priority)
+	if err != nil {
+		panic("strconv.Atoi(priority) errored")
+	}
+	// TODO(aaron-prindle) can also use MatchingPrecedence for dummy method
+	return flowSchemas[idx]
+}
+
+func requestPriorityState(r *http.Request, fs *rmtypesv1a1.FlowSchema, priorityLevelStates map[string]*PriorityLevelState) *PriorityLevelState {
 	// TODO: implement
-	return nil
+	out, ok := priorityLevelStates[fs.Spec.PriorityLevelConfiguration.Name]
+
+	if !ok {
+		panic("NOT OK!!")
+	}
+	return out
 }
