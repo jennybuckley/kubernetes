@@ -36,10 +36,10 @@ import (
 	// "k8s.io/apiserver/pkg/endpoints/metrics"
 
 	apirequest "k8s.io/apiserver/pkg/endpoints/request"
-	kubeinformers "k8s.io/client-go/informers"
-	"k8s.io/client-go/kubernetes"
 	"k8s.io/apiserver/pkg/server/filters/fq"
 	"k8s.io/apiserver/pkg/server/filters/reqmgmt/inflight"
+	kubeinformers "k8s.io/client-go/informers"
+	"k8s.io/client-go/kubernetes"
 	restclient "k8s.io/client-go/rest"
 	cache "k8s.io/client-go/tools/cache"
 	workqueue "k8s.io/client-go/util/workqueue"
@@ -118,7 +118,7 @@ type FairQueuingSystemImpl struct {
 	concurrencyLimit         int
 	assuredConcurrencyShares int
 	actualnumqueues          int // TODO(aaron-prindle) currently not updated/used...
-	numqueues                int
+	desiredNumQueues         int
 	queueLengthLimit         int
 	requestWaitLimit         time.Duration
 }
@@ -140,43 +140,26 @@ func initQueues(numQueues int) []fq.FQQueue {
 	return fqqueues
 }
 
-func NewFairQueuingSystem(concurrencyLimit, numQueues, queueLengthLimit int, requestWaitLimit time.Duration, clk clock.Clock) FairQueuingSystem {
+func NewFairQueuingSystem(concurrencyLimit, desiredNumQueues, queueLengthLimit int, requestWaitLimit time.Duration, clk clock.Clock) FairQueuingSystem {
 	return &FairQueuingSystemImpl{
 		// queues: queues,
-		fqq: inflight.NewFQScheduler(initQueues(numQueues), clk),
+		fqq: inflight.NewFQScheduler(initQueues(desiredNumQueues), clk),
 		// TODO(aaron-prindle) concurrency limit is updated dynamically
 		concurrencyLimit: concurrencyLimit,
-		numqueues:        numQueues,
+		desiredNumQueues: desiredNumQueues,
 		queueLengthLimit: queueLengthLimit,
 		requestWaitLimit: requestWaitLimit,
 	}
 }
 
-func (s *FairQueuingSystemImpl) SetConcurrencyLimit(concurrencyLimit int) {
+func (s *FairQueuingSystemImpl) SetConfiguration(concurrencyLimit, desiredNumQueues, queueLengthLimit int, requestWaitLimit time.Duration) {
 	s.concurrencyLimit = concurrencyLimit
-}
-
-func (s *FairQueuingSystemImpl) SetDesiredNumQueues(numqueues int) {
-	s.numqueues = numqueues
-}
-
-func (s *FairQueuingSystemImpl) GetDesiredNumQueues() int {
-	return s.numqueues
-}
-
-func (s *FairQueuingSystemImpl) GetActualNumQueues() int {
-	return s.actualnumqueues
-}
-
-func (s *FairQueuingSystemImpl) SetQueueLengthLimit(queueLengthLimit int) {
+	s.desiredNumQueues = desiredNumQueues
 	s.queueLengthLimit = queueLengthLimit
-}
-
-func (s *FairQueuingSystemImpl) SetRequestWaitLimit(requestWaitLimit time.Duration) {
 	s.requestWaitLimit = requestWaitLimit
 }
 
-func (s *FairQueuingSystemImpl) DoOnEmpty(func()) {
+func (s *FairQueuingSystemImpl) Quiesce(eh EmptyHandler) {
 	// When an undesired queue becomes empty it is
 	// deleted and the fair queuing round-robin pointer is advanced if it was
 	// pointing to that queue.
@@ -191,7 +174,7 @@ func (s *FairQueuingSystemImpl) DoOnEmpty(func()) {
 // TODO(aaron-prindle) DEBUG - remove seq
 var seq = 1
 
-func (s *FairQueuingSystemImpl) Wait(hashValue uint64, handSize int32) (execute bool, afterExecution func()) {
+func (s *FairQueuingSystemImpl) Wait(hashValue uint64, handSize int32) (quiescent, execute bool, afterExecution func()) {
 	// Wait, in the happy case, shuffle shards the given request into
 	// a queue and eventually dispatches the request from that queue.
 	// Dispatching means to return with `execute==true`.  In the
@@ -202,6 +185,8 @@ func (s *FairQueuingSystemImpl) Wait(hashValue uint64, handSize int32) (execute 
 	// used to do the shuffle sharding.
 
 	// TODO(aaron-prindle) verify what should/shouldn't be locked!!!!
+	// TODO(aaron-prindle) collapse all of FQ into one layer/lock (vs 3)
+	// TODO(aaron-prindle) implement quiscent
 
 	//	So that starts with the shuffle sharding, to pick a queue.
 	queueIdx := s.fqq.ChooseQueueIdx(hashValue, int(handSize))
@@ -306,7 +291,7 @@ func (s *FairQueuingSystemImpl) Wait(hashValue uint64, handSize int32) (execute 
 		fmt.Printf("ENQUEUED: %d\n", channelPkt.Seq)
 	}()
 	if shouldReject {
-		return false, func() {}
+		return false, false, func() {}
 	}
 	// The next step is to invoke the method that
 	// dequeues as much as possible.  This method runs a loop, as long as there
@@ -341,12 +326,12 @@ func (s *FairQueuingSystemImpl) Wait(hashValue uint64, handSize int32) (execute 
 	case execute := <-channelPkt.DequeueChannel:
 		if execute {
 			// execute
-			return true, func() { s.fqq.FinishPacketAndDequeueNextPacket(pkt) }
+			return false, true, func() { s.fqq.FinishPacketAndDequeueNextPacket(pkt) }
 		}
 		// timed out
 		fmt.Printf("channelPkt.DequeueChannel timed out\n")
 		// klog.V(5).Infof("channelPkt.DequeueChannel timed out\n")
-		return false, func() {}
+		return false, false, func() {}
 	}
 
 }
@@ -549,12 +534,6 @@ func WithRequestManagementByClient(
 			return
 		}
 
-		// --ORIG-- START
-		// TODO(aaron-prindle) CHANGE removed for early testing
-
-		// get state of regMgmnt so we know all the obj/config values
-		// rmState := reqMgmt.curState.Load().(*RMState)
-
 		for {
 			rmState := reqMgmt.curState.Load().(*RMState)
 			fs := reqMgmt.pickFlowSchema(r, rmState.flowSchemas, rmState.priorityLevelStates)
@@ -601,51 +580,19 @@ func hash(s string) uint64 {
 	return h.Sum64()
 }
 
-// func (requestManagement) computeFlowDistinguisher(r *http.Request, fs *rmtypesv1a1.FlowSchema) string {
-// 	// TODO: implement
-// 	// TODO(aaron-prindle) CHANGE replace w/ proper implementation
-// 	return fs.Name
-// }
-
-// func (requestManagement) hashFlowID(fsName, fDistinguisher string) uint64 {
-// 	// TODO: implement
-// 	// TODO(aaron-prindle) verify implementation
-// 	return hash(fmt.Sprintf("%s,%s", fsName, fDistinguisher))
-// }
-
-// func (requestManagement) pickFlowSchema(r *http.Request, flowSchemas FlowSchemaSeq, priorityLevelStates map[string]*PriorityLevelState) *rmtypesv1a1.FlowSchema {
-// 	// TODO(aaron-prindle) CHANGE replace w/ proper implementation
-// 	priority := r.Header.Get("PRIORITY")
-// 	idx, err := strconv.Atoi(priority)
-// 	if err != nil {
-// 		panic("strconv.Atoi(priority) errored")
-// 	}
-// 	// TODO(aaron-prindle) can also use MatchingPrecedence for dummy method
-// 	return flowSchemas[idx]
-// }
-
-// func (requestManagement) requestPriorityState(r *http.Request, fs *rmtypesv1a1.FlowSchema, priorityLevelStates map[string]*PriorityLevelState) *PriorityLevelState {
-// 	// TODO: implement
-// 	out, ok := priorityLevelStates[fs.Spec.PriorityLevelConfiguration.Name]
-// 	if !ok {
-// 		panic("NOT OK!!")
-// 	}
-// 	return out
-// }
-
-func computeFlowDistinguisher(r *http.Request, fs *rmtypesv1a1.FlowSchema) string {
+func (requestManagement) computeFlowDistinguisher(r *http.Request, fs *rmtypesv1a1.FlowSchema) string {
 	// TODO: implement
 	// TODO(aaron-prindle) CHANGE replace w/ proper implementation
 	return fs.Name
 }
 
-func hashFlowID(fsName, fDistinguisher string) uint64 {
+func (requestManagement) hashFlowID(fsName, fDistinguisher string) uint64 {
 	// TODO: implement
 	// TODO(aaron-prindle) verify implementation
 	return hash(fmt.Sprintf("%s,%s", fsName, fDistinguisher))
 }
 
-func pickFlowSchema(r *http.Request, flowSchemas FlowSchemaSeq, priorityLevelStates map[string]*PriorityLevelState) *rmtypesv1a1.FlowSchema {
+func (requestManagement) pickFlowSchema(r *http.Request, flowSchemas FlowSchemaSeq, priorityLevelStates map[string]*PriorityLevelState) *rmtypesv1a1.FlowSchema {
 	// TODO(aaron-prindle) CHANGE replace w/ proper implementation
 	priority := r.Header.Get("PRIORITY")
 	idx, err := strconv.Atoi(priority)
@@ -656,10 +603,9 @@ func pickFlowSchema(r *http.Request, flowSchemas FlowSchemaSeq, priorityLevelSta
 	return flowSchemas[idx]
 }
 
-func requestPriorityState(r *http.Request, fs *rmtypesv1a1.FlowSchema, priorityLevelStates map[string]*PriorityLevelState) *PriorityLevelState {
+func (requestManagement) requestPriorityState(r *http.Request, fs *rmtypesv1a1.FlowSchema, priorityLevelStates map[string]*PriorityLevelState) *PriorityLevelState {
 	// TODO: implement
 	out, ok := priorityLevelStates[fs.Spec.PriorityLevelConfiguration.Name]
-
 	if !ok {
 		panic("NOT OK!!")
 	}
