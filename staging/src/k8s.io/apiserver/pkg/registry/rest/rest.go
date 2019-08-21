@@ -255,6 +255,13 @@ type Patcher interface {
 	Updater
 }
 
+// ApplyDisabler is a storage object that should not be applied to.
+// This is usually because the resource is updated too frequently,
+// and should exclusively be managed by non humans, so don't waste time tracking field ownership.
+type ApplyDisabler interface {
+	DisableApply()
+}
+
 // Watcher should be implemented by all Storage objects that
 // want to offer the ability to watch for changes through the watch api.
 type Watcher interface {

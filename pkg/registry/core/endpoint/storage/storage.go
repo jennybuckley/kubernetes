@@ -59,3 +59,7 @@ var _ rest.ShortNamesProvider = &REST{}
 func (r *REST) ShortNames() []string {
 	return []string{"ep"}
 }
+
+// DisableApply for endpoints, because they are very large so tracking ownership for them is currently impractical.
+// TODO: Remove this once apply is efficient enough to run on endpoints.
+func (r *REST) DisableApply()

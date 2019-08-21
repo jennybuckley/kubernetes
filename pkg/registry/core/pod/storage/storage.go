@@ -332,3 +332,7 @@ func ephemeralContainersInPod(pod *api.Pod) *api.EphemeralContainers {
 		EphemeralContainers: ephemeralContainers,
 	}
 }
+
+// DisableApply for pods, because they are frequently updated by kubelet so tracking ownership for them is currently impractical.
+// TODO: Remove this once apply is efficient enough to run on pods.
+func (r *REST) DisableApply()

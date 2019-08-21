@@ -152,3 +152,7 @@ func (r *REST) ResourceLocation(ctx context.Context, id string) (*url.URL, http.
 func (r *REST) ShortNames() []string {
 	return []string{"no"}
 }
+
+// DisableApply for nodes, because they are frequently updated by kubelet so tracking ownership for them is currently impractical.
+// TODO: Remove this once apply is efficient enough to run on nodes.
+func (r *REST) DisableApply()

@@ -241,6 +241,7 @@ func (a *APIInstaller) registerResourceHandlers(path string, storage rest.Storag
 	connecter, isConnecter := storage.(rest.Connecter)
 	storageMeta, isMetadata := storage.(rest.StorageMetadata)
 	storageVersionProvider, isStorageVersionProvider := storage.(rest.StorageVersionProvider)
+	_, applyDisabledForResource := storage.(rest.ApplyDisabler)
 	if !isMetadata {
 		storageMeta = defaultStorageMetadata{}
 	}
@@ -549,7 +550,7 @@ func (a *APIInstaller) registerResourceHandlers(path string, storage rest.Storag
 	if a.group.MetaGroupVersion != nil {
 		reqScope.MetaGroupVersion = *a.group.MetaGroupVersion
 	}
-	if a.group.OpenAPIModels != nil && utilfeature.DefaultFeatureGate.Enabled(features.ServerSideApply) {
+	if a.group.OpenAPIModels != nil && utilfeature.DefaultFeatureGate.Enabled(features.ServerSideApply) && !applyDisabledForResource {
 		fm, err := fieldmanager.NewFieldManager(
 			a.group.OpenAPIModels,
 			a.group.UnsafeConvertor,
@@ -715,7 +716,7 @@ func (a *APIInstaller) registerResourceHandlers(path string, storage rest.Storag
 				string(types.MergePatchType),
 				string(types.StrategicMergePatchType),
 			}
-			if utilfeature.DefaultFeatureGate.Enabled(features.ServerSideApply) {
+			if utilfeature.DefaultFeatureGate.Enabled(features.ServerSideApply) && !applyDisabledForResource {
 				supportedTypes = append(supportedTypes, string(types.ApplyPatchType))
 			}
 			handler := metrics.InstrumentRouteFunc(action.Verb, group, version, resource, subresource, requestScope, metrics.APIServerComponent, restfulPatchResource(patcher, reqScope, admit, supportedTypes))
