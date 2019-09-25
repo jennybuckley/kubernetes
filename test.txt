@@ -1,2 +1,3 @@
 new line
+other new line
 added a file
