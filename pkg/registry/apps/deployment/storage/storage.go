@@ -232,11 +232,14 @@ func (r *RollbackREST) setDeploymentRollback(ctx context.Context, deploymentID s
 
 type ScaleREST struct {
 	store *genericregistry.Store
+
+	underlyingTransformFuncs []rest.TransformFunc
 }
 
 // ScaleREST implements Patcher
 var _ = rest.Patcher(&ScaleREST{})
 var _ = rest.GroupVersionKindProvider(&ScaleREST{})
+var _ = rest.SubresourceStorage(&ScaleREST{})
 
 func (r *ScaleREST) GroupVersionKind(containingGV schema.GroupVersion) schema.GroupVersionKind {
 	switch containingGV {
@@ -302,7 +305,7 @@ func (r *ScaleREST) Update(ctx context.Context, name string, objInfo rest.Update
 	obj, _, err = r.store.Update(
 		ctx,
 		deployment.Name,
-		rest.DefaultUpdatedObjectInfo(deployment),
+		rest.DefaultUpdatedObjectInfo(deployment, r.underlyingTransformFuncs...),
 		toScaleCreateValidation(createValidation),
 		toScaleUpdateValidation(updateValidation),
 		false,
@@ -317,6 +320,11 @@ func (r *ScaleREST) Update(ctx context.Context, name string, objInfo rest.Update
 		return nil, false, errors.NewBadRequest(fmt.Sprintf("%v", err))
 	}
 	return newScale, false, nil
+}
+
+// AddUnderlyingTransformFunc implements SubresourceStorage
+func (r *ScaleREST) AddUnderlyingTransformFunc(t rest.TransformFunc) {
+	r.underlyingTransformFuncs = append(r.underlyingTransformFuncs, t)
 }
 
 func toScaleCreateValidation(f rest.ValidateObjectFunc) rest.ValidateObjectFunc {

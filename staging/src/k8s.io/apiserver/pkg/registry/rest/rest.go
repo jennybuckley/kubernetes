@@ -227,6 +227,12 @@ func ValidateAllObjectUpdateFunc(ctx context.Context, obj, old runtime.Object) e
 	return nil
 }
 
+// SubresourceStorage is any Storage which represents a subresource for an underlying resource
+type SubresourceStorage interface {
+	// AddUnderlyingTransformFunc adds a TransformFunc which will be called on the underlying storage layer
+	AddUnderlyingTransformFunc(t TransformFunc)
+}
+
 // Updater is an object that can update an instance of a RESTful object.
 type Updater interface {
 	// New returns an empty object that can be used with Update after request data has been put into it.

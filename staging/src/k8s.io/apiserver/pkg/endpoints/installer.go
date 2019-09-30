@@ -17,6 +17,7 @@ limitations under the License.
 package endpoints
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	gpath "path"
@@ -241,6 +242,7 @@ func (a *APIInstaller) registerResourceHandlers(path string, storage rest.Storag
 	connecter, isConnecter := storage.(rest.Connecter)
 	storageMeta, isMetadata := storage.(rest.StorageMetadata)
 	storageVersionProvider, isStorageVersionProvider := storage.(rest.StorageVersionProvider)
+	subresourceStorage, isSubresourceStorage := storage.(rest.SubresourceStorage)
 	if !isMetadata {
 		storageMeta = defaultStorageMetadata{}
 	}
@@ -554,14 +556,25 @@ func (a *APIInstaller) registerResourceHandlers(path string, storage rest.Storag
 			a.group.OpenAPIModels,
 			a.group.UnsafeConvertor,
 			a.group.Defaulter,
-			fqKindToRegister.GroupVersion(),
+			a.group.GroupVersion,
 			reqScope.HubGroupVersion,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create field manager: %v", err)
 		}
-		fm = fieldmanager.NewSkipNonAppliedManager(fm, a.group.Creater, fqKindToRegister)
-		reqScope.FieldManager = fm
+		fm = fieldmanager.NewSkipNonAppliedManager(fm, a.group.Creater, a.group.GroupVersion.WithKind(kind))
+		
+		if isSubresourceStorage {
+			subresourceStorage.AddUnderlyingTransformFunc(func(_ context.Context, newObj, liveObj runtime.Object) (runtime.Object, error) {
+				obj, err := fm.Update(liveObj, newObj, "subresource-updater")
+				if err != nil {
+					return nil, fmt.Errorf("failed to update object (Update for %v) managed fields: %v", a.group.GroupVersion.WithKind(kind), err)
+				}
+				return obj, nil
+			})
+		} else {
+			reqScope.FieldManager = fm
+		}
 	}
 	for _, action := range actions {
 		producedObject := storageMeta.ProducesObject(action.Verb)
