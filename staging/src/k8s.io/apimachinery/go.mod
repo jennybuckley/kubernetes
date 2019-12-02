@@ -40,5 +40,5 @@ replace (
 	golang.org/x/sys => golang.org/x/sys v0.0.0-20190813064441-fde4db37ae7a // pinned to release-branch.go1.13
 	golang.org/x/tools => golang.org/x/tools v0.0.0-20190821162956-65e3620a7ae7 // pinned to release-branch.go1.13
 	k8s.io/apimachinery => ../apimachinery
-	sigs.k8s.io/structured-merge-diff => github.com/jennybuckley/structured-merge-diff v0.0.0-20191202213137-0c27f862942d
+	sigs.k8s.io/structured-merge-diff => github.com/jennybuckley/structured-merge-diff v0.0.0-20191202225007-2c9373a5e5a7
 )

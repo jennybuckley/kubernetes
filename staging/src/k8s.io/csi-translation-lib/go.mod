@@ -18,5 +18,5 @@ replace (
 	k8s.io/client-go => ../client-go
 	k8s.io/cloud-provider => ../cloud-provider
 	k8s.io/csi-translation-lib => ../csi-translation-lib
-	sigs.k8s.io/structured-merge-diff => github.com/jennybuckley/structured-merge-diff v0.0.0-20191202213137-0c27f862942d
+	sigs.k8s.io/structured-merge-diff => github.com/jennybuckley/structured-merge-diff v0.0.0-20191202225007-2c9373a5e5a7
 )
