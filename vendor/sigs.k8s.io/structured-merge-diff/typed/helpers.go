@@ -97,7 +97,7 @@ func resolveSchema(s *schema.Schema, tr schema.TypeRef, v *value.Value, ah atomH
 
 func deduceAtom(a schema.Atom, v *value.Value) schema.Atom {
 	switch {
-	case v == nil:
+	case v == nil, *v == nil:
 	case (*v).IsFloat(), (*v).IsInt(), (*v).IsString(), (*v).IsBool():
 		return schema.Atom{Scalar: a.Scalar}
 	case (*v).IsList():
@@ -140,7 +140,7 @@ func listValue(val value.Value) (value.List, error) {
 
 // Returns the map, or an error. Reminder: nil is a valid map and might be returned.
 func mapValue(val value.Value) (value.Map, error) {
-	if val.IsNull() {
+	if val == nil || val.IsNull() {
 		// Null is a valid map.
 		return nil, nil
 	}
